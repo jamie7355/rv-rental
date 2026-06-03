@@ -8,9 +8,11 @@ from datetime import date
 import json
 
 from django.conf import settings as django_settings
+from django.http import HttpResponse
 from .models import RV, Booking, Customer
 from .forms import AdminBookingForm, CustomerForm
 from .utils import get_delivery_distance_km, calculate_delivery_charge, calculate_taxes
+from .invoice import generate_invoice_pdf
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +251,29 @@ def admin_booking_list(request):
 def admin_booking_detail(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
     return render(request, "rentals/admin_booking_detail.html", {"booking": booking})
+
+
+@staff_member_required
+def admin_invoice_list(request):
+    bookings = Booking.objects.select_related("rv", "customer").exclude(
+        status=Booking.Status.CANCELLED
+    ).order_by("-created_at")
+    return render(request, "rentals/admin_invoice_list.html", {"bookings": bookings})
+
+
+@staff_member_required
+def admin_invoice_detail(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    return render(request, "rentals/admin_invoice_detail.html", {"booking": booking})
+
+
+@staff_member_required
+def admin_invoice_pdf(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    buffer = generate_invoice_pdf(booking)
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="invoice-INV-{booking.pk:04d}.pdf"'
+    return response
 
 
 @staff_member_required

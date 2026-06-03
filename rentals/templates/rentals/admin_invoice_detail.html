@@ -1,0 +1,136 @@
+{% extends "rentals/base.html" %}
+{% load static %}
+
+{% block title %}Invoice INV-{{ booking.pk|stringformat:"04d" }} — Prairie Skies RV Rentals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Invoice INV-{{ booking.pk|stringformat:"04d" }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_invoice_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <a href="{% url 'admin_invoice_pdf' booking.pk %}" class="btn btn-primary">
+      <i class="bi bi-download me-1"></i>Download PDF
+    </a>
+  </div>
+</div>
+
+<!-- Invoice preview card -->
+<div class="card shadow-sm" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-body p-5">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <img src="{% static 'rentals/logo.jpg' %}" alt="Prairie Skies RV Rentals" height="90">
+      </div>
+      <div class="text-end">
+        <h4 class="fw-bold text-muted">INVOICE</h4>
+        <p class="mb-0 fw-semibold">INV-{{ booking.pk|stringformat:"04d" }}</p>
+        <p class="mb-0 text-muted small">Date: {{ booking.created_at|date:"F j, Y" }}</p>
+        <p class="mb-0">
+          {% if booking.status == "completed" %}
+            <span class="badge bg-primary">PAID</span>
+          {% elif booking.status == "confirmed" %}
+            <span class="badge bg-success">CONFIRMED</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">PENDING</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-6">
+        <p class="text-muted small fw-bold mb-1">FROM</p>
+        <p class="mb-0 fw-semibold">Prairie Skies RV Rentals Ltd</p>
+        <p class="mb-0 small">Yorkton, Saskatchewan</p>
+        <p class="mb-0 small">306-520-2420</p>
+        <p class="mb-0 small">Prairie.skies@gmail.com</p>
+      </div>
+      <div class="col-6">
+        <p class="text-muted small fw-bold mb-1">BILL TO</p>
+        <p class="mb-0 fw-semibold">{{ booking.customer.full_name }}</p>
+        <p class="mb-0 small">{{ booking.customer.email }}</p>
+        <p class="mb-0 small">{{ booking.customer.phone }}</p>
+      </div>
+    </div>
+
+    <!-- Booking details -->
+    <table class="table table-bordered table-sm mb-4">
+      <thead class="text-white" style="background-color: #3d2008;">
+        <tr>
+          <th>RV</th>
+          <th>Dates</th>
+          <th>Duration</th>
+          <th>Pickup / Delivery</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ booking.rv.name }}</td>
+          <td>{{ booking.start_date }} → {{ booking.end_date }}</td>
+          <td>{{ booking.num_days }} day{{ booking.num_days|pluralize }}</td>
+          <td>
+            {% if booking.is_delivery %}
+              Delivery — {{ booking.delivery_address }}
+              {% if booking.delivery_distance_km %}({{ booking.delivery_distance_km }} km){% endif %}
+            {% else %}
+              Customer Pickup — Yorkton, SK
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Charges -->
+    <table class="table table-sm mb-1">
+      <thead class="text-white" style="background-color: #3d2008;">
+        <tr>
+          <th>Description</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RV Rental — {{ booking.rv.name }} ({{ booking.num_days }} day{{ booking.num_days|pluralize }} × ${{ booking.rv.price_per_day }}/day)</td>
+          <td class="text-end">${{ booking.rental_total }}</td>
+        </tr>
+        {% if booking.is_delivery %}
+        <tr>
+          <td>Delivery Charge ({{ booking.delivery_distance_km }} km × $2.50/km)</td>
+          <td class="text-end">${{ booking.delivery_charge }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td>GST (5%)</td>
+          <td class="text-end">${{ booking.gst_amount }}</td>
+        </tr>
+        <tr>
+          <td>PST (6%)</td>
+          <td class="text-end">${{ booking.pst_amount }}</td>
+        </tr>
+        <tr class="text-muted">
+          <td>Damage Deposit <span class="small">(refundable)</span></td>
+          <td class="text-end">${{ booking.damage_deposit }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background-color: #f5f5f5; border-top: 2px solid #3d2008;">
+          <th class="fs-6">TOTAL DUE</th>
+          <th class="text-end fs-6" style="color: #3d2008;">${{ booking.total_charged }}</th>
+        </tr>
+      </tfoot>
+    </table>
+
+    {% if booking.special_requests %}
+    <p class="small text-muted mt-3"><strong>Notes:</strong> {{ booking.special_requests }}</p>
+    {% endif %}
+
+    <hr class="mt-4">
+    <p class="text-center text-muted small mb-0">Thank you for choosing Prairie Skies RV Rentals Ltd!</p>
+    <p class="text-center text-muted small">306-520-2420 &bull; Prairie.skies@gmail.com</p>
+  </div>
+</div>
+{% endblock %}
