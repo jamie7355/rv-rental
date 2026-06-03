@@ -53,7 +53,7 @@
             {% if user.is_staff %}
               <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Admin</a>
             {% else %}
-              <a href="/admin/login/?next=/dashboard/" class="btn btn-sm btn-outline-secondary">Admin</a>
+              <a href="{% url 'login' %}?next=/dashboard/" class="btn btn-sm btn-outline-secondary">Admin</a>
             {% endif %}
           </li>
         </ul>
