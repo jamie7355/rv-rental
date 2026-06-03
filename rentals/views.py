@@ -259,6 +259,94 @@ def admin_booking_detail(request, pk):
 
 
 @staff_member_required
+def admin_settings(request):
+    from django.contrib.auth.models import User
+    users = User.objects.all().order_by("username")
+    return render(request, "rentals/admin_settings.html", {"users": users})
+
+
+@staff_member_required
+def admin_change_password(request):
+    from django.contrib.auth import update_session_auth_hash
+    error = None
+    if request.method == "POST":
+        current = request.POST.get("current_password")
+        new1 = request.POST.get("new_password1")
+        new2 = request.POST.get("new_password2")
+        if not request.user.check_password(current):
+            error = "Current password is incorrect."
+        elif new1 != new2:
+            error = "New passwords do not match."
+        elif len(new1) < 8:
+            error = "New password must be at least 8 characters."
+        else:
+            request.user.set_password(new1)
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            messages.success(request, "Password changed successfully.")
+            return redirect("admin_settings")
+    return render(request, "rentals/admin_change_password.html", {"error": error})
+
+
+@staff_member_required
+def admin_user_add(request):
+    from django.contrib.auth.models import User
+    error = None
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        password1 = request.POST.get("password1")
+        password2 = request.POST.get("password2")
+        is_superuser = request.POST.get("is_superuser") == "on"
+
+        if User.objects.filter(username=username).exists():
+            error = "That username is already taken."
+        elif password1 != password2:
+            error = "Passwords do not match."
+        elif len(password1) < 8:
+            error = "Password must be at least 8 characters."
+        else:
+            user = User.objects.create_user(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                password=password1,
+                is_staff=True,
+                is_superuser=is_superuser,
+            )
+            messages.success(request, f"Admin user {user.username} created.")
+            return redirect("admin_settings")
+    return render(request, "rentals/admin_user_form.html", {"title": "Add Admin User", "u": None, "error": error})
+
+
+@staff_member_required
+def admin_user_edit(request, pk):
+    from django.contrib.auth.models import User
+    u = get_object_or_404(User, pk=pk)
+    error = None
+    if request.method == "POST":
+        u.first_name = request.POST.get("first_name", "").strip()
+        u.last_name = request.POST.get("last_name", "").strip()
+        u.email = request.POST.get("email", "").strip()
+        u.is_active = request.POST.get("is_active") == "on"
+        u.is_superuser = request.POST.get("is_superuser") == "on"
+        new_password = request.POST.get("new_password", "").strip()
+        if new_password:
+            if len(new_password) < 8:
+                error = "Password must be at least 8 characters."
+            else:
+                u.set_password(new_password)
+        if not error:
+            u.save()
+            messages.success(request, f"User {u.username} updated.")
+            return redirect("admin_settings")
+    return render(request, "rentals/admin_user_form.html", {"title": "Edit Admin User", "u": u, "error": error})
+
+
+@staff_member_required
 def admin_rv_list(request):
     rvs = RV.objects.all().order_by("name")
     return render(request, "rentals/admin_rv_list.html", {"rvs": rvs})
