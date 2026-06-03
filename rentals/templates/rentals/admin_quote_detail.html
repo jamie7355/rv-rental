@@ -1,0 +1,137 @@
+{% extends "rentals/base.html" %}
+{% load static %}
+
+{% block title %}Quote QT-{{ quote.pk|stringformat:"04d" }} — Prairie Skies RV Rentals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Quote QT-{{ quote.pk|stringformat:"04d" }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_quote_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <a href="{% url 'admin_quote_pdf' quote.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-download me-1"></i>PDF
+    </a>
+    {% if quote.status == "active" %}
+    <form method="post" action="{% url 'admin_quote_convert' quote.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-arrow-right-circle me-1"></i>Convert to Booking
+      </button>
+    </form>
+    {% elif quote.status == "converted" and quote.converted_booking %}
+    <a href="{% url 'admin_booking_detail' quote.converted_booking.pk %}" class="btn btn-success">
+      <i class="bi bi-check-circle me-1"></i>View Booking #{{ quote.converted_booking.pk }}
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-body p-5">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <img src="{% static 'rentals/logo.jpg' %}" alt="Prairie Skies RV Rentals" height="90">
+      <div class="text-end">
+        <h4 class="fw-bold text-muted">QUOTE</h4>
+        <p class="mb-0 fw-semibold">QT-{{ quote.pk|stringformat:"04d" }}</p>
+        <p class="mb-0 text-muted small">Date: {{ quote.created_at|date:"F j, Y" }}</p>
+        <p class="mb-0 text-muted small">Valid until: {{ quote.expires_at|date:"F j, Y g:i a" }}</p>
+        <p class="mb-1">
+          {% if quote.status == "active" %}
+            <span class="badge bg-success">Active</span>
+          {% elif quote.status == "expired" %}
+            <span class="badge bg-secondary">Expired</span>
+          {% elif quote.status == "converted" %}
+            <span class="badge bg-primary">Converted to Booking</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-6">
+        <p class="text-muted small fw-bold mb-1">FROM</p>
+        <p class="mb-0 fw-semibold">Prairie Skies RV Rentals Ltd</p>
+        <p class="mb-0 small">Yorkton, Saskatchewan</p>
+        <p class="mb-0 small">306-520-2420</p>
+        <p class="mb-0 small">Prairie.skies@gmail.com</p>
+      </div>
+      <div class="col-6">
+        <p class="text-muted small fw-bold mb-1">PREPARED FOR</p>
+        <p class="mb-0 fw-semibold">{{ quote.customer_name }}</p>
+        <p class="mb-0 small">{{ quote.customer_email }}</p>
+        <p class="mb-0 small">{{ quote.customer_phone }}</p>
+      </div>
+    </div>
+
+    <!-- Details table -->
+    <table class="table table-bordered table-sm mb-4">
+      <thead class="text-white" style="background-color: #3d2008;">
+        <tr><th>RV</th><th>Dates</th><th>Duration</th><th>Pickup / Delivery</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ quote.rv.name }}</td>
+          <td>{{ quote.start_date }} → {{ quote.end_date }}</td>
+          <td>{{ quote.num_days }} day{{ quote.num_days|pluralize }}</td>
+          <td>
+            {% if quote.is_delivery %}
+              Delivery — {{ quote.delivery_address }}
+              {% if quote.delivery_distance_km %}({{ quote.delivery_distance_km }} km){% endif %}
+            {% else %}
+              Customer Pickup — Yorkton, SK
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Charges -->
+    <table class="table table-sm mb-2">
+      <thead class="text-white" style="background-color: #3d2008;">
+        <tr><th>Description</th><th class="text-end">Amount</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RV Rental — {{ quote.rv.name }} ({{ quote.num_days }} day{{ quote.num_days|pluralize }} × ${{ quote.rv.price_per_day }}/day)</td>
+          <td class="text-end">${{ quote.rental_total }}</td>
+        </tr>
+        {% if quote.is_delivery %}
+        <tr>
+          <td>Delivery Charge ({{ quote.delivery_distance_km }} km × $2.50/km)</td>
+          <td class="text-end">${{ quote.delivery_charge }}</td>
+        </tr>
+        {% endif %}
+        <tr><td>GST (5%)</td><td class="text-end">${{ quote.gst_amount }}</td></tr>
+        <tr><td>PST (6%)</td><td class="text-end">${{ quote.pst_amount }}</td></tr>
+        <tr class="text-muted">
+          <td>Damage Deposit <span class="small">(refundable)</span></td>
+          <td class="text-end">${{ quote.damage_deposit }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background-color: #f5f5f5; border-top: 2px solid #3d2008;">
+          <th class="fs-6">ESTIMATED TOTAL</th>
+          <th class="text-end fs-6" style="color: #3d2008;">${{ quote.total_estimate }}</th>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p class="text-muted small fst-italic">
+      This quote is an estimate only and does not reserve the dates.
+      Prices are valid for 24 hours. Dates are subject to availability at time of booking.
+    </p>
+
+    {% if quote.notes %}
+    <p class="small mt-2"><strong>Notes:</strong> {{ quote.notes }}</p>
+    {% endif %}
+
+    <hr class="mt-4">
+    <p class="text-center text-muted small mb-0">Thank you for considering Prairie Skies RV Rentals Ltd!</p>
+    <p class="text-center text-muted small">306-520-2420 &bull; Prairie.skies@gmail.com</p>
+  </div>
+</div>
+{% endblock %}

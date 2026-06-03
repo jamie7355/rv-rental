@@ -88,6 +88,67 @@ class Booking(models.Model):
         ordering = ["-created_at"]
 
 
+class Quote(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        EXPIRED = "expired", "Expired"
+        CONVERTED = "converted", "Converted to Booking"
+
+    rv = models.ForeignKey(RV, on_delete=models.PROTECT, related_name="quotes")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Contact info only (no full customer record needed)
+    customer_name = models.CharField(max_length=200)
+    customer_email = models.EmailField()
+    customer_phone = models.CharField(max_length=20)
+
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    # Delivery
+    is_delivery = models.BooleanField(default=False)
+    delivery_address = models.TextField(blank=True)
+    delivery_distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    delivery_charge = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    # Financials
+    rental_total = models.DecimalField(max_digits=10, decimal_places=2)
+    damage_deposit = models.DecimalField(max_digits=8, decimal_places=2)
+    gst_amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    pst_amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    converted_booking = models.OneToOneField(
+        "Booking", on_delete=models.SET_NULL, null=True, blank=True, related_name="quote"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Quote #{self.pk} — {self.customer_name} ({self.rv.name})"
+
+    @property
+    def num_days(self):
+        return (self.end_date - self.start_date).days
+
+    @property
+    def total_estimate(self):
+        return self.rental_total + self.delivery_charge + self.gst_amount + self.pst_amount + self.damage_deposit
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return self.status == self.Status.ACTIVE and timezone.now() > self.expires_at
+
+    @property
+    def expires_at(self):
+        from datetime import timedelta
+        return self.created_at + timedelta(hours=24)
+
+
 class Payment(models.Model):
     class Method(models.TextChoices):
         STRIPE = "stripe", "Stripe (Online)"

@@ -1,0 +1,234 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}New Quote — Prairie Skies RV Rentals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">New Quote</h2>
+  <a href="{% url 'admin_quote_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Quotes
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" id="quote-form">
+          {% csrf_token %}
+
+          <h6 class="fw-bold mb-3 text-muted">CUSTOMER INFO</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <label class="form-label">Full Name</label>
+              <input type="text" name="customer_name" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="customer_email" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Phone</label>
+              <input type="tel" name="customer_phone" class="form-control" required>
+            </div>
+          </div>
+
+          <h6 class="fw-bold mb-3 text-muted">BOOKING DETAILS</h6>
+          <div class="mb-3">
+            <label class="form-label">RV</label>
+            <select name="rv" id="id_rv" class="form-select" required>
+              <option value="">-- Select an RV --</option>
+              {% for rv in rvs %}
+              <option value="{{ rv.pk }}" data-price="{{ rv.price_per_day }}" data-deposit="{{ rv.damage_deposit }}">
+                {{ rv.name }} — ${{ rv.price_per_day }}/day
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col">
+              <label class="form-label">Start Date</label>
+              <input type="date" name="start_date" id="id_start_date" class="form-control" required>
+            </div>
+            <div class="col">
+              <label class="form-label">End Date</label>
+              <input type="date" name="end_date" id="id_end_date" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Pickup or Delivery?</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="is_delivery" id="opt-pickup" value="pickup" checked>
+                <label class="form-check-label" for="opt-pickup">Customer Pickup — Yorkton, SK</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="is_delivery" id="opt-delivery" value="delivery">
+                <label class="form-check-label" for="opt-delivery">Delivery (${{ rate_per_km }}/km)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 d-none" id="delivery-section">
+            <label class="form-label">Delivery Address</label>
+            <div class="input-group">
+              <input type="text" name="delivery_address" id="delivery-address" class="form-control" placeholder="Enter full delivery address">
+              <button type="button" class="btn btn-outline-secondary" id="calc-distance-btn">Calculate</button>
+            </div>
+            <div id="distance-result" class="mt-2 small"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes <span class="text-muted">(optional)</span></label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+
+          <div class="alert alert-info d-none" id="cost-summary">
+            <div class="d-flex justify-content-between mb-1"><span>Rental cost:</span><strong id="summary-rental">—</strong></div>
+            <div class="d-flex justify-content-between mb-1 d-none" id="summary-delivery-row">
+              <span id="summary-delivery-label">Delivery:</span><strong id="summary-delivery-amt">—</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-1"><span>GST (5%):</span><strong id="summary-gst">—</strong></div>
+            <div class="d-flex justify-content-between mb-1"><span>PST (6%):</span><strong id="summary-pst">—</strong></div>
+            <div class="d-flex justify-content-between mb-1 text-muted"><span>Damage deposit:</span><strong id="summary-deposit">—</strong></div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between"><span>Estimated Total:</span><strong id="summary-total">—</strong></div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-file-text me-1"></i>Create Quote
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><strong>Availability</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Select an RV to see booked dates highlighted in red.</p>
+        <div id="availability-calendar"></div>
+        <div class="mt-2 d-flex gap-3 small">
+          <span><span class="badge bg-danger">●</span> Booked</span>
+          <span><span class="badge bg-success">●</span> Available</span>
+        </div>
+        <p class="text-muted small mt-3 mb-0"><i class="bi bi-info-circle me-1"></i>Quotes do not reserve dates.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rvAvailability = {{ rv_availability_json|safe }};
+const GST = 0.05, PST = 0.06;
+let calendarInstance = null;
+let deliveryCharge = 0;
+
+function fmt(n) { return "$" + parseFloat(n).toFixed(2); }
+
+function getBookedDates(ranges) {
+  const dates = [];
+  (ranges || []).forEach(r => {
+    let cur = new Date(r.start + "T00:00:00");
+    const end = new Date(r.end + "T00:00:00");
+    while (cur <= end) { dates.push(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate()+1); }
+  });
+  return dates;
+}
+
+function initCalendar(disabledDates) {
+  if (calendarInstance) calendarInstance.destroy();
+  calendarInstance = flatpickr("#availability-calendar", {
+    inline: true, mode: "range", minDate: "today",
+    onDayCreate(dObj, dStr, fp, dayElem) {
+      if (disabledDates.includes(dayElem.dateObj.toISOString().split("T")[0])) {
+        dayElem.classList.add("booked"); dayElem.title = "Already booked";
+      }
+    },
+    onChange(selectedDates) {
+      if (selectedDates.length === 2) {
+        document.getElementById("id_start_date").value = selectedDates[0].toISOString().split("T")[0];
+        document.getElementById("id_end_date").value = selectedDates[1].toISOString().split("T")[0];
+        updateSummary();
+      }
+    }
+  });
+}
+
+function updateSummary() {
+  const rvSel = document.getElementById("id_rv");
+  const start = document.getElementById("id_start_date").value;
+  const end = document.getElementById("id_end_date").value;
+  const opt = rvSel.options[rvSel.selectedIndex];
+  if (!start || !end || !opt.dataset.price) return;
+  const days = Math.round((new Date(end) - new Date(start)) / 86400000);
+  if (days <= 0) return;
+  const rental = days * parseFloat(opt.dataset.price);
+  const deposit = parseFloat(opt.dataset.deposit);
+  const taxable = rental + deliveryCharge;
+  const gst = taxable * GST, pst = taxable * PST;
+  const total = taxable + gst + pst + deposit;
+  document.getElementById("summary-rental").textContent = fmt(rental);
+  document.getElementById("summary-gst").textContent = fmt(gst);
+  document.getElementById("summary-pst").textContent = fmt(pst);
+  document.getElementById("summary-deposit").textContent = fmt(deposit);
+  document.getElementById("summary-total").textContent = fmt(total);
+  document.getElementById("cost-summary").classList.remove("d-none");
+}
+
+document.getElementById("id_rv").addEventListener("change", function() {
+  const ranges = rvAvailability[this.value] || [];
+  initCalendar(getBookedDates(ranges));
+  updateSummary();
+});
+
+document.getElementById("id_start_date").addEventListener("change", updateSummary);
+document.getElementById("id_end_date").addEventListener("change", updateSummary);
+
+document.querySelectorAll("input[name='is_delivery']").forEach(r => {
+  r.addEventListener("change", function() {
+    const sec = document.getElementById("delivery-section");
+    if (this.value === "delivery") { sec.classList.remove("d-none"); }
+    else {
+      sec.classList.add("d-none");
+      deliveryCharge = 0;
+      document.getElementById("summary-delivery-row").classList.add("d-none");
+      updateSummary();
+    }
+  });
+});
+
+document.getElementById("calc-distance-btn").addEventListener("click", function() {
+  const address = document.getElementById("delivery-address").value.trim();
+  if (!address) return;
+  const resultEl = document.getElementById("distance-result");
+  resultEl.innerHTML = '<span class="text-muted">Calculating...</span>';
+  this.disabled = true;
+  const btn = this;
+  fetch(`/api/delivery-distance/?address=${encodeURIComponent(address)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        resultEl.innerHTML = `<span class="text-danger">${data.error}</span>`;
+        deliveryCharge = 0;
+      } else {
+        deliveryCharge = data.charge;
+        resultEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>${data.distance_km} km from Yorkton — ${fmt(data.charge)}</span>`;
+        document.getElementById("summary-delivery-row").classList.remove("d-none");
+        document.getElementById("summary-delivery-label").textContent = `Delivery (${data.distance_km} km):`;
+        document.getElementById("summary-delivery-amt").textContent = fmt(data.charge);
+        updateSummary();
+      }
+    })
+    .catch(() => resultEl.innerHTML = '<span class="text-danger">Could not connect. Please try again.</span>')
+    .finally(() => btn.disabled = false);
+});
+
+initCalendar([]);
+</script>
+{% endblock %}

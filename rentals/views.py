@@ -9,7 +9,7 @@ import json
 
 from django.conf import settings as django_settings
 from django.http import HttpResponse
-from .models import RV, Booking, Customer
+from .models import RV, Booking, Customer, Quote
 from .forms import AdminBookingForm, CustomerForm
 from .utils import get_delivery_distance_km, calculate_delivery_charge, calculate_taxes
 from .invoice import generate_invoice_pdf
@@ -251,6 +251,145 @@ def admin_booking_list(request):
 def admin_booking_detail(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
     return render(request, "rentals/admin_booking_detail.html", {"booking": booking})
+
+
+@staff_member_required
+def admin_quote_list(request):
+    from django.utils import timezone
+    quotes = Quote.objects.select_related("rv").all()
+    # Auto-expire quotes past 24 hours
+    for q in quotes:
+        if q.status == Quote.Status.ACTIVE and timezone.now() > q.expires_at:
+            q.status = Quote.Status.EXPIRED
+            q.save(update_fields=["status"])
+    quotes = Quote.objects.select_related("rv").all()
+    return render(request, "rentals/admin_quote_list.html", {"quotes": quotes})
+
+
+@staff_member_required
+def admin_quote_create(request):
+    from django.utils import timezone
+    rvs = RV.objects.filter(is_active=True)
+    rv_availability = {}
+    for rv in rvs:
+        booked = Booking.objects.filter(
+            rv=rv, status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED]
+        ).values("start_date", "end_date")
+        rv_availability[rv.pk] = [
+            {"start": str(b["start_date"]), "end": str(b["end_date"])} for b in booked
+        ]
+
+    if request.method == "POST":
+        rv_id = request.POST.get("rv")
+        rv = get_object_or_404(RV, pk=rv_id)
+        start_date = date.fromisoformat(request.POST.get("start_date"))
+        end_date = date.fromisoformat(request.POST.get("end_date"))
+        num_days = (end_date - start_date).days
+        is_delivery = request.POST.get("is_delivery") == "delivery"
+        delivery_address = request.POST.get("delivery_address", "").strip()
+        delivery_distance_km = None
+        delivery_charge = 0
+
+        if is_delivery and delivery_address:
+            delivery_distance_km = get_delivery_distance_km(delivery_address)
+            if delivery_distance_km:
+                delivery_charge = calculate_delivery_charge(delivery_distance_km)
+
+        rental_total = rv.price_per_day * num_days
+        gst, pst = calculate_taxes(rental_total, delivery_charge)
+
+        quote = Quote.objects.create(
+            rv=rv,
+            created_by=request.user,
+            customer_name=request.POST.get("customer_name", "").strip(),
+            customer_email=request.POST.get("customer_email", "").strip(),
+            customer_phone=request.POST.get("customer_phone", "").strip(),
+            start_date=start_date,
+            end_date=end_date,
+            is_delivery=is_delivery,
+            delivery_address=delivery_address if is_delivery else "",
+            delivery_distance_km=delivery_distance_km,
+            delivery_charge=delivery_charge,
+            rental_total=rental_total,
+            damage_deposit=rv.damage_deposit,
+            gst_amount=gst,
+            pst_amount=pst,
+            notes=request.POST.get("notes", "").strip(),
+        )
+        messages.success(request, f"Quote #{quote.pk} created for {quote.customer_name}.")
+        return redirect("admin_quote_detail", pk=quote.pk)
+
+    return render(request, "rentals/admin_quote_create.html", {
+        "rvs": rvs,
+        "rv_availability_json": json.dumps(rv_availability),
+        "rate_per_km": django_settings.DELIVERY_RATE_PER_KM,
+        "google_maps_api_key": django_settings.GOOGLE_MAPS_API_KEY,
+    })
+
+
+@staff_member_required
+def admin_quote_detail(request, pk):
+    quote = get_object_or_404(Quote, pk=pk)
+    return render(request, "rentals/admin_quote_detail.html", {"quote": quote})
+
+
+@staff_member_required
+def admin_quote_convert(request, pk):
+    quote = get_object_or_404(Quote, pk=pk)
+    if request.method == "POST" and quote.status == Quote.Status.ACTIVE:
+        booking = Booking.objects.create(
+            rv=quote.rv,
+            created_by=request.user,
+            source=Booking.BookingSource.ADMIN,
+            status=Booking.Status.PENDING,
+            start_date=quote.start_date,
+            end_date=quote.end_date,
+            rental_total=quote.rental_total,
+            damage_deposit=quote.damage_deposit,
+            is_delivery=quote.is_delivery,
+            delivery_address=quote.delivery_address,
+            delivery_distance_km=quote.delivery_distance_km,
+            delivery_charge=quote.delivery_charge,
+            gst_amount=quote.gst_amount,
+            pst_amount=quote.pst_amount,
+            special_requests=quote.notes,
+            customer=_get_or_create_customer_from_quote(quote),
+        )
+        quote.status = Quote.Status.CONVERTED
+        quote.converted_booking = booking
+        quote.save()
+        messages.success(request, f"Quote converted to Booking #{booking.pk}. Please complete the customer details.")
+        return redirect("admin_booking_detail", pk=booking.pk)
+    return redirect("admin_quote_detail", pk=pk)
+
+
+def _get_or_create_customer_from_quote(quote):
+    name_parts = quote.customer_name.strip().split(" ", 1)
+    first = name_parts[0]
+    last = name_parts[1] if len(name_parts) > 1 else ""
+    customer, _ = Customer.objects.get_or_create(
+        email=quote.customer_email,
+        defaults={
+            "first_name": first,
+            "last_name": last,
+            "phone": quote.customer_phone,
+            "drivers_license_number": "PENDING",
+            "drivers_license_expiry": quote.start_date,
+            "emergency_contact_name": "PENDING",
+            "emergency_contact_phone": "PENDING",
+        }
+    )
+    return customer
+
+
+@staff_member_required
+def admin_quote_pdf(request, pk):
+    from .invoice import generate_quote_pdf
+    quote = get_object_or_404(Quote, pk=pk)
+    buffer = generate_quote_pdf(quote)
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="quote-QT-{quote.pk:04d}.pdf"'
+    return response
 
 
 @staff_member_required

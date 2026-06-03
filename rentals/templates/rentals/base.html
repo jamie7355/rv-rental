@@ -44,6 +44,9 @@
     <a href="/admin/rentals/customer/">
       <i class="bi bi-people me-2"></i>Customers
     </a>
+    <a href="{% url 'admin_quote_list' %}" class="{% if 'quote' in request.resolver_match.url_name %}active{% endif %}">
+      <i class="bi bi-file-text me-2"></i>Quotes
+    </a>
     <a href="{% url 'admin_invoice_list' %}" class="{% if 'invoice' in request.resolver_match.url_name %}active{% endif %}">
       <i class="bi bi-receipt me-2"></i>Invoices
     </a>
