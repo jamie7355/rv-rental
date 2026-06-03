@@ -14,6 +14,10 @@ class CustomerForm(forms.ModelForm):
             "drivers_license_expiry": forms.DateInput(attrs={"type": "date"}),
         }
 
+    def clean_email(self):
+        # Allow existing emails — returning customers can book again
+        return self.cleaned_data["email"]
+
 
 class BookingForm(forms.ModelForm):
     class Meta:
