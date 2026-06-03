@@ -63,7 +63,24 @@
       </div>
     </div>
 
-    <p class="text-muted small">We will contact <strong>{{ booking.customer.email }}</strong> or <strong>{{ booking.customer.phone }}</strong> to confirm your booking and arrange payment.</p>
+    <!-- Payment instructions -->
+    <div class="card border-primary mt-4 text-start">
+      <div class="card-header bg-primary text-white">
+        <strong><i class="bi bi-credit-card me-2"></i>How to Pay</strong>
+      </div>
+      <div class="card-body">
+        <p class="mb-2">To secure your booking, please send an e-transfer for the <strong>damage deposit of ${{ booking.damage_deposit }}</strong> to:</p>
+        <p class="fs-5 fw-bold mb-1">prairieskies.rv@gmail.com</p>
+        <p class="text-muted small mb-3">In the message field please include your name and booking dates ({{ booking.start_date }} → {{ booking.end_date }}).</p>
+        <div class="alert alert-warning mb-0 small">
+          <i class="bi bi-clock me-1"></i>
+          Your booking will remain <strong>Pending</strong> until payment is received.
+          Once we process your e-transfer we will confirm your reservation and be in touch directly.
+        </div>
+      </div>
+    </div>
+
+    <p class="text-muted small mt-3">Questions? Call or text <strong>306-520-2420</strong> or email <strong>Prairie.skies@gmail.com</strong></p>
 
     <a href="{% url 'home' %}" class="btn btn-outline-primary mt-2">
       <i class="bi bi-house me-1"></i>Back to Home
