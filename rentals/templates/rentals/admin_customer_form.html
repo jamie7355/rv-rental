@@ -1,0 +1,70 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}{{ title }} — Prairie Skies RV Rentals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">{{ title }}</h2>
+  <a href="{% url 'admin_customer_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Customers
+  </a>
+</div>
+
+<div class="card" style="max-width: 700px;">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-6">
+          <label class="form-label">First Name</label>
+          <input type="text" name="first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Last Name</label>
+          <input type="text" name="last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}" required>
+          {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="col-6">
+          <label class="form-label">Phone</label>
+          <input type="tel" name="phone" class="form-control" value="{{ form.phone.value|default:'' }}" required>
+        </div>
+        <div class="col-8">
+          <label class="form-label">Driver's License Number</label>
+          <input type="text" name="drivers_license_number" class="form-control" value="{{ form.drivers_license_number.value|default:'' }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label">License Expiry</label>
+          <input type="date" name="drivers_license_expiry" class="form-control" value="{{ form.drivers_license_expiry.value|default:'' }}">
+        </div>
+        <div class="col-8">
+          <label class="form-label">Emergency Contact Name</label>
+          <input type="text" name="emergency_contact_name" class="form-control" value="{{ form.emergency_contact_name.value|default:'' }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label">Emergency Phone</label>
+          <input type="tel" name="emergency_contact_phone" class="form-control" value="{{ form.emergency_contact_phone.value|default:'' }}">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2">{{ form.notes.value|default:'' }}</textarea>
+        </div>
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger mt-3">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-circle me-1"></i>Save Customer
+        </button>
+        <a href="{% url 'admin_customer_list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

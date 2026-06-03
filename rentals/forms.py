@@ -19,6 +19,19 @@ class CustomerForm(forms.ModelForm):
         return self.cleaned_data["email"]
 
 
+class AdminCustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = [
+            "first_name", "last_name", "email", "phone",
+            "drivers_license_number", "drivers_license_expiry",
+            "emergency_contact_name", "emergency_contact_phone", "notes",
+        ]
+        widgets = {
+            "drivers_license_expiry": forms.DateInput(attrs={"type": "date"}),
+        }
+
+
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking

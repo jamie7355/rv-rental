@@ -41,7 +41,7 @@
     <a href="/admin/rentals/rv/" >
       <i class="bi bi-truck me-2"></i>Manage RVs
     </a>
-    <a href="/admin/rentals/customer/">
+    <a href="{% url 'admin_customer_list' %}" class="{% if 'customer' in request.resolver_match.url_name %}active{% endif %}">
       <i class="bi bi-people me-2"></i>Customers
     </a>
     <a href="{% url 'admin_quote_list' %}" class="{% if 'quote' in request.resolver_match.url_name %}active{% endif %}">

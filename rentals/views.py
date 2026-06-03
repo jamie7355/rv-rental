@@ -10,7 +10,7 @@ import json
 from django.conf import settings as django_settings
 from django.http import HttpResponse
 from .models import RV, Booking, Customer, Quote
-from .forms import AdminBookingForm, CustomerForm
+from .forms import AdminBookingForm, CustomerForm, AdminCustomerForm
 from .utils import get_delivery_distance_km, calculate_delivery_charge, calculate_taxes
 from .invoice import generate_invoice_pdf
 
@@ -256,6 +256,48 @@ def admin_booking_list(request):
 def admin_booking_detail(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
     return render(request, "rentals/admin_booking_detail.html", {"booking": booking})
+
+
+@staff_member_required
+def admin_customer_list(request):
+    q = request.GET.get("q", "").strip()
+    customers = Customer.objects.all().order_by("last_name", "first_name")
+    if q:
+        customers = customers.filter(
+            Q(first_name__icontains=q) | Q(last_name__icontains=q) |
+            Q(email__icontains=q) | Q(phone__icontains=q)
+        )
+    return render(request, "rentals/admin_customer_list.html", {"customers": customers, "q": q})
+
+
+@staff_member_required
+def admin_customer_add(request):
+    if request.method == "POST":
+        form = AdminCustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            # Ajax quick-add from booking form
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"id": customer.pk, "name": customer.full_name, "email": customer.email})
+            messages.success(request, f"Customer {customer.full_name} added.")
+            return redirect("admin_customer_list")
+    else:
+        form = AdminCustomerForm()
+    return render(request, "rentals/admin_customer_form.html", {"form": form, "title": "Add Customer"})
+
+
+@staff_member_required
+def admin_customer_edit(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == "POST":
+        form = AdminCustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Customer {customer.full_name} updated.")
+            return redirect("admin_customer_list")
+    else:
+        form = AdminCustomerForm(instance=customer)
+    return render(request, "rentals/admin_customer_form.html", {"form": form, "title": "Edit Customer", "customer": customer})
 
 
 @staff_member_required
