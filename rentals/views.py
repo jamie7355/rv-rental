@@ -259,6 +259,59 @@ def admin_booking_detail(request, pk):
 
 
 @staff_member_required
+def admin_rv_list(request):
+    rvs = RV.objects.all().order_by("name")
+    return render(request, "rentals/admin_rv_list.html", {"rvs": rvs})
+
+
+@staff_member_required
+def admin_rv_add(request):
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
+        capacity = request.POST.get("capacity")
+        price_per_day = request.POST.get("price_per_day")
+        damage_deposit = request.POST.get("damage_deposit")
+        is_active = request.POST.get("is_active") == "on"
+        image = request.FILES.get("image")
+
+        rv = RV(
+            name=name,
+            description=description,
+            capacity=capacity,
+            price_per_day=price_per_day,
+            damage_deposit=damage_deposit,
+            is_active=is_active,
+        )
+        if image:
+            rv.image = image
+        rv.save()
+        messages.success(request, f"{rv.name} added successfully.")
+        return redirect("admin_rv_list")
+
+    return render(request, "rentals/admin_rv_form.html", {"title": "Add RV", "rv": None})
+
+
+@staff_member_required
+def admin_rv_edit(request, pk):
+    rv = get_object_or_404(RV, pk=pk)
+    if request.method == "POST":
+        rv.name = request.POST.get("name", "").strip()
+        rv.description = request.POST.get("description", "").strip()
+        rv.capacity = request.POST.get("capacity")
+        rv.price_per_day = request.POST.get("price_per_day")
+        rv.damage_deposit = request.POST.get("damage_deposit")
+        rv.is_active = request.POST.get("is_active") == "on"
+        if request.FILES.get("image"):
+            rv.image = request.FILES.get("image")
+        rv.save()
+        messages.success(request, f"{rv.name} updated successfully.")
+        return redirect("admin_rv_list")
+
+    return render(request, "rentals/admin_rv_form.html", {"title": "Edit RV", "rv": rv})
+
+
+@staff_member_required
 def admin_customer_list(request):
     q = request.GET.get("q", "").strip()
     customers = Customer.objects.all().order_by("last_name", "first_name")

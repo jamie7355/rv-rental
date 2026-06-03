@@ -38,7 +38,7 @@
     <a href="{% url 'admin_booking_create' %}" >
       <i class="bi bi-plus-circle me-2"></i>New Booking
     </a>
-    <a href="/admin/rentals/rv/" >
+    <a href="{% url 'admin_rv_list' %}" class="{% if 'rv' in request.resolver_match.url_name %}active{% endif %}">
       <i class="bi bi-truck me-2"></i>Manage RVs
     </a>
     <a href="{% url 'admin_customer_list' %}" class="{% if 'customer' in request.resolver_match.url_name %}active{% endif %}">
