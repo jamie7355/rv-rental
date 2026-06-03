@@ -119,7 +119,7 @@ def generate_invoice_pdf(booking):
 
     if booking.is_delivery:
         charge_rows.append([
-            f"Delivery Charge ({booking.delivery_distance_km} km × $2.50/km)",
+            f"Delivery Charge ({booking.delivery_distance_km} km × 2 trips × $2.50/km)",
             Paragraph(f"${booking.delivery_charge}", right_style),
         ])
 
@@ -256,7 +256,7 @@ def generate_quote_pdf(quote):
     ]
     if quote.is_delivery:
         charge_rows.append([
-            f"Delivery Charge ({quote.delivery_distance_km} km × $2.50/km)",
+            f"Delivery Charge ({quote.delivery_distance_km} km × 2 trips × $2.50/km)",
             Paragraph(f"${quote.delivery_charge}", right_style),
         ])
     charge_rows += [

@@ -27,7 +27,8 @@ def get_delivery_distance_km(destination_address):
 
 
 def calculate_delivery_charge(distance_km):
-    return round(float(distance_km) * settings.DELIVERY_RATE_PER_KM, 2)
+    # Multiply by 2 for return trip (deliver to customer + retrieve camper)
+    return round(float(distance_km) * 2 * settings.DELIVERY_RATE_PER_KM, 2)
 
 
 def calculate_taxes(rental_total, delivery_charge):

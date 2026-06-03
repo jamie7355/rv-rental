@@ -99,7 +99,7 @@
         </tr>
         {% if booking.is_delivery %}
         <tr>
-          <td>Delivery Charge ({{ booking.delivery_distance_km }} km × $2.50/km)</td>
+          <td>Delivery Charge ({{ booking.delivery_distance_km }} km × 2 trips × $2.50/km)</td>
           <td class="text-end">${{ booking.delivery_charge }}</td>
         </tr>
         {% endif %}
