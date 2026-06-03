@@ -1,0 +1,121 @@
+{% extends "rentals/customer/base.html" %}
+
+{% block title %}Book {{ rv.name }} — RV Rental{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <h2 class="mb-1">Book {{ rv.name }}</h2>
+    <p class="text-muted mb-4">{{ start_date }} → {{ end_date }} &bull; {{ num_days }} day{{ num_days|pluralize }}</p>
+
+    <!-- Progress steps -->
+    <div class="d-flex align-items-center gap-3 mb-4">
+      <div class="d-flex align-items-center gap-2"><span class="step-badge">1</span><span class="fw-semibold">Your Details</span></div>
+      <div class="flex-grow-1 border-top"></div>
+      <div class="d-flex align-items-center gap-2 text-muted"><span class="step-badge bg-secondary">2</span><span>Payment</span></div>
+      <div class="flex-grow-1 border-top"></div>
+      <div class="d-flex align-items-center gap-2 text-muted"><span class="step-badge bg-secondary">3</span><span>Confirmation</span></div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Form -->
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title mb-3">Your Information</h5>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="start_date" value="{{ start_date }}">
+              <input type="hidden" name="end_date" value="{{ end_date }}">
+
+              <div class="row g-3">
+                <div class="col-6">
+                  <label class="form-label">First Name</label>
+                  <input type="text" name="first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Last Name</label>
+                  <input type="text" name="last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Email</label>
+                  <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Phone Number</label>
+                  <input type="tel" name="phone" class="form-control" value="{{ form.phone.value|default:'' }}" required>
+                </div>
+                <div class="col-8">
+                  <label class="form-label">Driver's License Number</label>
+                  <input type="text" name="drivers_license_number" class="form-control" value="{{ form.drivers_license_number.value|default:'' }}" required>
+                </div>
+                <div class="col-4">
+                  <label class="form-label">Expiry Date</label>
+                  <input type="date" name="drivers_license_expiry" class="form-control" value="{{ form.drivers_license_expiry.value|default:'' }}" required>
+                </div>
+                <div class="col-8">
+                  <label class="form-label">Emergency Contact Name</label>
+                  <input type="text" name="emergency_contact_name" class="form-control" value="{{ form.emergency_contact_name.value|default:'' }}" required>
+                </div>
+                <div class="col-4">
+                  <label class="form-label">Their Phone</label>
+                  <input type="tel" name="emergency_contact_phone" class="form-control" value="{{ form.emergency_contact_phone.value|default:'' }}" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Special Requests <span class="text-muted">(optional)</span></label>
+                  <textarea name="notes" class="form-control" rows="2">{{ form.notes.value|default:'' }}</textarea>
+                </div>
+              </div>
+
+              {% if form.errors %}
+              <div class="alert alert-danger mt-3">
+                Please correct the errors below.
+                {{ form.errors }}
+              </div>
+              {% endif %}
+
+              <button type="submit" class="btn btn-primary w-100 mt-4">
+                <i class="bi bi-arrow-right me-1"></i>Continue to Payment
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking summary -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm bg-light border-0">
+          <div class="card-body">
+            <h6 class="fw-bold mb-3">Booking Summary</h6>
+            {% if rv.image %}
+              <img src="{{ rv.image.url }}" class="img-fluid rounded mb-3" alt="{{ rv.name }}">
+            {% endif %}
+            <p class="fw-semibold mb-1">{{ rv.name }}</p>
+            <p class="text-muted small mb-3"><i class="bi bi-people me-1"></i>Sleeps {{ rv.capacity }}</p>
+            <div class="small">
+              <div class="d-flex justify-content-between mb-1">
+                <span>{{ start_date }} → {{ end_date }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span>{{ num_days }} day{{ num_days|pluralize }} × ${{ rv.price_per_day }}</span>
+                <span>${{ rental_total }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span>Damage deposit</span>
+                <span>${{ rv.damage_deposit }}</span>
+              </div>
+              <hr>
+              <div class="d-flex justify-content-between fw-bold">
+                <span>Total due</span>
+                <span>${{ grand_total }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

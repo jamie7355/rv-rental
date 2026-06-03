@@ -1,0 +1,118 @@
+{% extends "rentals/customer/base.html" %}
+
+{% block title %}{{ rv.name }} — RV Rental{% endblock %}
+
+{% block content %}
+<div class="row g-5">
+  <!-- RV info -->
+  <div class="col-lg-5">
+    {% if rv.image %}
+      <img src="{{ rv.image.url }}" class="img-fluid rounded shadow mb-3" alt="{{ rv.name }}">
+    {% else %}
+      <div class="bg-secondary rounded d-flex align-items-center justify-content-center mb-3" style="height:300px;">
+        <i class="bi bi-truck text-white" style="font-size:5rem;"></i>
+      </div>
+    {% endif %}
+    <h2>{{ rv.name }}</h2>
+    <p class="text-muted"><i class="bi bi-people me-1"></i>Sleeps {{ rv.capacity }}</p>
+    {% if rv.description %}
+      <p>{{ rv.description }}</p>
+    {% endif %}
+    <div class="card bg-light border-0 p-3">
+      <div class="d-flex justify-content-between mb-2">
+        <span>Price per day</span><strong>${{ rv.price_per_day }}</strong>
+      </div>
+      <div class="d-flex justify-content-between">
+        <span>Damage deposit</span><strong>${{ rv.damage_deposit }}</strong>
+      </div>
+    </div>
+    <a href="{% url 'home' %}" class="btn btn-outline-secondary mt-3">
+      <i class="bi bi-arrow-left me-1"></i>Back to all RVs
+    </a>
+  </div>
+
+  <!-- Availability + book -->
+  <div class="col-lg-7">
+    <h4 class="mb-3">Select Your Dates</h4>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div id="availability-calendar" class="mb-3"></div>
+        <div class="d-flex gap-3 small mb-4">
+          <span><span class="badge bg-danger">●</span> Booked</span>
+          <span><span class="badge bg-success">●</span> Available</span>
+        </div>
+
+        <div id="date-summary" class="alert alert-primary d-none">
+          <div class="d-flex justify-content-between"><span>Dates:</span><strong id="ds-dates">—</strong></div>
+          <div class="d-flex justify-content-between"><span>Duration:</span><strong id="ds-days">—</strong></div>
+          <div class="d-flex justify-content-between"><span>Rental cost:</span><strong id="ds-rental">—</strong></div>
+          <div class="d-flex justify-content-between"><span>Damage deposit:</span><strong id="ds-deposit">—</strong></div>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between"><span>Total due:</span><strong id="ds-total">—</strong></div>
+        </div>
+
+        <a id="book-btn" href="#" class="btn btn-primary w-100 d-none">
+          <i class="bi bi-calendar-check me-1"></i>Continue to Book
+        </a>
+        <p class="text-muted small text-center mt-2 mb-0">Select a start and end date on the calendar above.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const bookedRanges = {{ booked_json|safe }};
+const pricePerDay = {{ rv.price_per_day }};
+const damageDeposit = {{ rv.damage_deposit }};
+const bookUrl = "{% url 'rv_book' rv.pk %}";
+
+function getBookedDates() {
+  const dates = [];
+  bookedRanges.forEach(r => {
+    let cur = new Date(r.start + "T00:00:00");
+    const end = new Date(r.end + "T00:00:00");
+    while (cur <= end) {
+      dates.push(cur.toISOString().split("T")[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+  return dates;
+}
+
+flatpickr("#availability-calendar", {
+  inline: true,
+  mode: "range",
+  minDate: "today",
+  onDayCreate: function(dObj, dStr, fp, dayElem) {
+    const d = dayElem.dateObj.toISOString().split("T")[0];
+    if (getBookedDates().includes(d)) {
+      dayElem.classList.add("booked");
+      dayElem.title = "Already booked";
+    }
+  },
+  onChange: function(selectedDates) {
+    if (selectedDates.length === 2) {
+      const start = selectedDates[0];
+      const end = selectedDates[1];
+      const days = Math.round((end - start) / 86400000);
+      const rental = days * pricePerDay;
+      const total = rental + damageDeposit;
+
+      const fmt = d => d.toLocaleDateString("en-CA");
+      document.getElementById("ds-dates").textContent = fmt(start) + " → " + fmt(end);
+      document.getElementById("ds-days").textContent = days + " day" + (days !== 1 ? "s" : "");
+      document.getElementById("ds-rental").textContent = "$" + rental.toFixed(2);
+      document.getElementById("ds-deposit").textContent = "$" + damageDeposit.toFixed(2);
+      document.getElementById("ds-total").textContent = "$" + total.toFixed(2);
+      document.getElementById("date-summary").classList.remove("d-none");
+
+      const btn = document.getElementById("book-btn");
+      btn.href = bookUrl + "?start=" + fmt(start) + "&end=" + fmt(end);
+      btn.classList.remove("d-none");
+    }
+  }
+});
+</script>
+{% endblock %}

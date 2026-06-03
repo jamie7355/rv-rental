@@ -1,0 +1,52 @@
+{% extends "rentals/customer/base.html" %}
+
+{% block title %}Booking Confirmed — RV Rental{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6 text-center">
+    <div class="mb-4">
+      <i class="bi bi-check-circle-fill text-success" style="font-size:4rem;"></i>
+    </div>
+    <h2 class="mb-2">You're booked!</h2>
+    <p class="text-muted mb-4">We've received your booking request. We'll be in touch shortly to confirm your reservation.</p>
+
+    <div class="card shadow-sm text-start mb-4">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">Booking Details</h6>
+        <dl class="row mb-0 small">
+          <dt class="col-sm-5">Booking #</dt>
+          <dd class="col-sm-7">{{ booking.pk }}</dd>
+
+          <dt class="col-sm-5">RV</dt>
+          <dd class="col-sm-7">{{ booking.rv.name }}</dd>
+
+          <dt class="col-sm-5">Dates</dt>
+          <dd class="col-sm-7">{{ booking.start_date }} → {{ booking.end_date }}</dd>
+
+          <dt class="col-sm-5">Duration</dt>
+          <dd class="col-sm-7">{{ booking.num_days }} day{{ booking.num_days|pluralize }}</dd>
+
+          <dt class="col-sm-5">Rental Total</dt>
+          <dd class="col-sm-7">${{ booking.rental_total }}</dd>
+
+          <dt class="col-sm-5">Damage Deposit</dt>
+          <dd class="col-sm-7">${{ booking.damage_deposit }}</dd>
+
+          <dt class="col-sm-5">Total Due</dt>
+          <dd class="col-sm-7"><strong>${{ booking.total_charged }}</strong></dd>
+
+          <dt class="col-sm-5">Status</dt>
+          <dd class="col-sm-7"><span class="badge bg-warning text-dark">Pending</span></dd>
+        </dl>
+      </div>
+    </div>
+
+    <p class="text-muted small">A confirmation email will be sent to <strong>{{ booking.customer.email }}</strong> once payment is arranged.</p>
+
+    <a href="{% url 'home' %}" class="btn btn-outline-primary mt-2">
+      <i class="bi bi-house me-1"></i>Back to Home
+    </a>
+  </div>
+</div>
+{% endblock %}

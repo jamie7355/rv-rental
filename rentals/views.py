@@ -4,10 +4,107 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib import messages
 from decimal import Decimal
+from datetime import date
 import json
 
 from .models import RV, Booking, Customer
 from .forms import AdminBookingForm, CustomerForm
+
+
+# ---------------------------------------------------------------------------
+# Customer-facing views
+# ---------------------------------------------------------------------------
+
+def home(request):
+    rvs = RV.objects.filter(is_active=True)
+    return render(request, "rentals/customer/home.html", {"rvs": rvs})
+
+
+def rv_detail(request, pk):
+    rv = get_object_or_404(RV, pk=pk, is_active=True)
+    booked = Booking.objects.filter(
+        rv=rv,
+        status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+    ).values("start_date", "end_date")
+    booked_json = json.dumps([
+        {"start": str(b["start_date"]), "end": str(b["end_date"])} for b in booked
+    ])
+    return render(request, "rentals/customer/rv_detail.html", {
+        "rv": rv,
+        "booked_json": booked_json,
+    })
+
+
+def rv_book(request, pk):
+    rv = get_object_or_404(RV, pk=pk, is_active=True)
+
+    start_str = request.POST.get("start_date") or request.GET.get("start")
+    end_str = request.POST.get("end_date") or request.GET.get("end")
+
+    if not start_str or not end_str:
+        return redirect("rv_detail", pk=pk)
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return redirect("rv_detail", pk=pk)
+
+    num_days = (end_date - start_date).days
+    if num_days <= 0:
+        messages.error(request, "End date must be after start date.")
+        return redirect("rv_detail", pk=pk)
+
+    rental_total = rv.price_per_day * num_days
+    grand_total = rental_total + rv.damage_deposit
+
+    if request.method == "POST":
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            # Get or create customer by email
+            customer, _ = Customer.objects.get_or_create(
+                email=form.cleaned_data["email"],
+                defaults={
+                    "first_name": form.cleaned_data["first_name"],
+                    "last_name": form.cleaned_data["last_name"],
+                    "phone": form.cleaned_data["phone"],
+                    "drivers_license_number": form.cleaned_data["drivers_license_number"],
+                    "drivers_license_expiry": form.cleaned_data["drivers_license_expiry"],
+                    "emergency_contact_name": form.cleaned_data["emergency_contact_name"],
+                    "emergency_contact_phone": form.cleaned_data["emergency_contact_phone"],
+                    "notes": form.cleaned_data.get("notes", ""),
+                }
+            )
+
+            booking = Booking.objects.create(
+                rv=rv,
+                customer=customer,
+                source=Booking.BookingSource.ONLINE,
+                status=Booking.Status.PENDING,
+                start_date=start_date,
+                end_date=end_date,
+                rental_total=rental_total,
+                damage_deposit=rv.damage_deposit,
+                special_requests=form.cleaned_data.get("notes", ""),
+            )
+            return redirect("booking_confirmed", pk=booking.pk)
+    else:
+        form = CustomerForm()
+
+    return render(request, "rentals/customer/book.html", {
+        "rv": rv,
+        "form": form,
+        "start_date": start_date,
+        "end_date": end_date,
+        "num_days": num_days,
+        "rental_total": rental_total,
+        "grand_total": grand_total,
+    })
+
+
+def booking_confirmed(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    return render(request, "rentals/customer/booking_confirmed.html", {"booking": booking})
 
 
 def availability_api(request, rv_id):
