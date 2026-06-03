@@ -55,6 +55,16 @@ class Booking(models.Model):
     end_date = models.DateField()
     rental_total = models.DecimalField(max_digits=10, decimal_places=2)
     damage_deposit = models.DecimalField(max_digits=8, decimal_places=2)
+    # Delivery
+    is_delivery = models.BooleanField(default=False)
+    delivery_address = models.TextField(blank=True)
+    delivery_distance_km = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    delivery_charge = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    # Tax (applied to rental + delivery, not damage deposit)
+    gst_amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    pst_amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
     special_requests = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -67,8 +77,12 @@ class Booking(models.Model):
         return (self.end_date - self.start_date).days
 
     @property
+    def taxable_subtotal(self):
+        return self.rental_total + self.delivery_charge
+
+    @property
     def total_charged(self):
-        return self.rental_total + self.damage_deposit
+        return self.rental_total + self.delivery_charge + self.gst_amount + self.pst_amount + self.damage_deposit
 
     class Meta:
         ordering = ["-created_at"]

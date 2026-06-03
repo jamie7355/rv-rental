@@ -52,11 +52,32 @@
           <dt class="col-sm-4">Duration</dt>
           <dd class="col-sm-8">{{ booking.num_days }} day{{ booking.num_days|pluralize }}</dd>
 
+          <dt class="col-sm-4">Pickup / Delivery</dt>
+          <dd class="col-sm-8">
+            {% if booking.is_delivery %}
+              Delivery — {{ booking.delivery_address }}
+              {% if booking.delivery_distance_km %}({{ booking.delivery_distance_km }} km){% endif %}
+            {% else %}
+              Customer Pickup — Yorkton, SK
+            {% endif %}
+          </dd>
+
           <dt class="col-sm-4">Rental Total</dt>
           <dd class="col-sm-8">${{ booking.rental_total }}</dd>
 
+          {% if booking.is_delivery %}
+          <dt class="col-sm-4">Delivery Charge</dt>
+          <dd class="col-sm-8">${{ booking.delivery_charge }}</dd>
+          {% endif %}
+
+          <dt class="col-sm-4">GST (5%)</dt>
+          <dd class="col-sm-8">${{ booking.gst_amount }}</dd>
+
+          <dt class="col-sm-4">PST (6%)</dt>
+          <dd class="col-sm-8">${{ booking.pst_amount }}</dd>
+
           <dt class="col-sm-4">Damage Deposit</dt>
-          <dd class="col-sm-8">${{ booking.damage_deposit }}</dd>
+          <dd class="col-sm-8">${{ booking.damage_deposit }} <span class="text-muted small">(refundable)</span></dd>
 
           <dt class="col-sm-4">Grand Total</dt>
           <dd class="col-sm-8"><strong>${{ booking.total_charged }}</strong></dd>

@@ -7,8 +7,32 @@ from decimal import Decimal
 from datetime import date
 import json
 
+from django.conf import settings as django_settings
 from .models import RV, Booking, Customer
 from .forms import AdminBookingForm, CustomerForm
+from .utils import get_delivery_distance_km, calculate_delivery_charge, calculate_taxes
+
+
+# ---------------------------------------------------------------------------
+# Delivery distance API
+# ---------------------------------------------------------------------------
+
+def delivery_distance_api(request):
+    """Calculate delivery distance and charge for a given address."""
+    address = request.GET.get("address", "").strip()
+    if not address:
+        return JsonResponse({"error": "No address provided"}, status=400)
+
+    distance_km = get_delivery_distance_km(address)
+    if distance_km is None:
+        return JsonResponse({"error": "Could not calculate distance. Please check the address."}, status=400)
+
+    charge = calculate_delivery_charge(distance_km)
+    return JsonResponse({
+        "distance_km": float(distance_km),
+        "charge": float(charge),
+        "rate_per_km": django_settings.DELIVERY_RATE_PER_KM,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -60,8 +84,20 @@ def rv_book(request, pk):
 
     if request.method == "POST":
         form = CustomerForm(request.POST)
+        is_delivery = request.POST.get("is_delivery") == "delivery"
+        delivery_address = request.POST.get("delivery_address", "").strip()
+        delivery_distance_km = None
+        delivery_charge = 0
+
+        if is_delivery and delivery_address:
+            delivery_distance_km = get_delivery_distance_km(delivery_address)
+            if delivery_distance_km:
+                delivery_charge = calculate_delivery_charge(delivery_distance_km)
+
+        gst, pst = calculate_taxes(rental_total, delivery_charge)
+        grand_total = rental_total + delivery_charge + gst + pst + rv.damage_deposit
+
         if form.is_valid():
-            # Get or create customer by email
             customer, _ = Customer.objects.get_or_create(
                 email=form.cleaned_data["email"],
                 defaults={
@@ -85,11 +121,19 @@ def rv_book(request, pk):
                 end_date=end_date,
                 rental_total=rental_total,
                 damage_deposit=rv.damage_deposit,
+                is_delivery=is_delivery,
+                delivery_address=delivery_address if is_delivery else "",
+                delivery_distance_km=delivery_distance_km,
+                delivery_charge=delivery_charge,
+                gst_amount=gst,
+                pst_amount=pst,
                 special_requests=form.cleaned_data.get("notes", ""),
             )
             return redirect("booking_confirmed", pk=booking.pk)
     else:
         form = CustomerForm()
+        gst, pst = calculate_taxes(rental_total, 0)
+        grand_total = rental_total + gst + pst + rv.damage_deposit
 
     return render(request, "rentals/customer/book.html", {
         "rv": rv,
@@ -99,6 +143,12 @@ def rv_book(request, pk):
         "num_days": num_days,
         "rental_total": rental_total,
         "grand_total": grand_total,
+        "gst": gst,
+        "pst": pst,
+        "gst_rate": int(django_settings.GST_RATE * 100),
+        "pst_rate": int(django_settings.PST_RATE * 100),
+        "rate_per_km": django_settings.DELIVERY_RATE_PER_KM,
+        "google_maps_api_key": django_settings.GOOGLE_MAPS_API_KEY,
     })
 
 

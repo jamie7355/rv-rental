@@ -11,9 +11,19 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+DELIVERY_RATE_PER_KM = 2.50
+DELIVERY_ORIGIN = "Yorkton, Saskatchewan, Canada"
+GST_RATE = 0.05
+PST_RATE = 0.06
 
 
 # Quick-start development settings - unsuitable for production

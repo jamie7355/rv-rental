@@ -1,6 +1,6 @@
 {% extends "rentals/customer/base.html" %}
 
-{% block title %}Booking Confirmed — RV Rental{% endblock %}
+{% block title %}Booking Confirmed — Prairie Skies RV Rentals{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -9,7 +9,7 @@
       <i class="bi bi-check-circle-fill text-success" style="font-size:4rem;"></i>
     </div>
     <h2 class="mb-2">You're booked!</h2>
-    <p class="text-muted mb-4">We've received your booking request. We'll be in touch shortly to confirm your reservation.</p>
+    <p class="text-muted mb-4">We've received your booking request. We'll be in touch shortly to confirm your reservation and arrange payment.</p>
 
     <div class="card shadow-sm text-start mb-4">
       <div class="card-body">
@@ -27,11 +27,32 @@
           <dt class="col-sm-5">Duration</dt>
           <dd class="col-sm-7">{{ booking.num_days }} day{{ booking.num_days|pluralize }}</dd>
 
+          <dt class="col-sm-5">Pickup / Delivery</dt>
+          <dd class="col-sm-7">
+            {% if booking.is_delivery %}
+              Delivery to {{ booking.delivery_address }}
+              {% if booking.delivery_distance_km %}({{ booking.delivery_distance_km }} km){% endif %}
+            {% else %}
+              Customer Pickup — Yorkton, SK
+            {% endif %}
+          </dd>
+
           <dt class="col-sm-5">Rental Total</dt>
           <dd class="col-sm-7">${{ booking.rental_total }}</dd>
 
+          {% if booking.is_delivery %}
+          <dt class="col-sm-5">Delivery Charge</dt>
+          <dd class="col-sm-7">${{ booking.delivery_charge }}</dd>
+          {% endif %}
+
+          <dt class="col-sm-5">GST (5%)</dt>
+          <dd class="col-sm-7">${{ booking.gst_amount }}</dd>
+
+          <dt class="col-sm-5">PST (6%)</dt>
+          <dd class="col-sm-7">${{ booking.pst_amount }}</dd>
+
           <dt class="col-sm-5">Damage Deposit</dt>
-          <dd class="col-sm-7">${{ booking.damage_deposit }}</dd>
+          <dd class="col-sm-7">${{ booking.damage_deposit }} <span class="text-muted">(refundable)</span></dd>
 
           <dt class="col-sm-5">Total Due</dt>
           <dd class="col-sm-7"><strong>${{ booking.total_charged }}</strong></dd>
@@ -42,7 +63,7 @@
       </div>
     </div>
 
-    <p class="text-muted small">A confirmation email will be sent to <strong>{{ booking.customer.email }}</strong> once payment is arranged.</p>
+    <p class="text-muted small">We will contact <strong>{{ booking.customer.email }}</strong> or <strong>{{ booking.customer.phone }}</strong> to confirm your booking and arrange payment.</p>
 
     <a href="{% url 'home' %}" class="btn btn-outline-primary mt-2">
       <i class="bi bi-house me-1"></i>Back to Home

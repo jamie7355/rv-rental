@@ -1,6 +1,6 @@
 {% extends "rentals/customer/base.html" %}
 
-{% block title %}Book {{ rv.name }} — RV Rental{% endblock %}
+{% block title %}Book {{ rv.name }} — Prairie Skies RV Rentals{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -13,9 +13,7 @@
     <div class="d-flex align-items-center gap-3 mb-4">
       <div class="d-flex align-items-center gap-2"><span class="step-badge">1</span><span class="fw-semibold">Your Details</span></div>
       <div class="flex-grow-1 border-top"></div>
-      <div class="d-flex align-items-center gap-2 text-muted"><span class="step-badge bg-secondary">2</span><span>Payment</span></div>
-      <div class="flex-grow-1 border-top"></div>
-      <div class="d-flex align-items-center gap-2 text-muted"><span class="step-badge bg-secondary">3</span><span>Confirmation</span></div>
+      <div class="d-flex align-items-center gap-2 text-muted"><span class="step-badge bg-secondary">2</span><span>Confirmation</span></div>
     </div>
 
     <div class="row g-4">
@@ -24,7 +22,7 @@
         <div class="card shadow-sm">
           <div class="card-body">
             <h5 class="card-title mb-3">Your Information</h5>
-            <form method="post">
+            <form method="post" id="booking-form">
               {% csrf_token %}
               <input type="hidden" name="start_date" value="{{ start_date }}">
               <input type="hidden" name="end_date" value="{{ end_date }}">
@@ -62,6 +60,39 @@
                   <label class="form-label">Their Phone</label>
                   <input type="tel" name="emergency_contact_phone" class="form-control" value="{{ form.emergency_contact_phone.value|default:'' }}" required>
                 </div>
+
+                <!-- Pickup or Delivery -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Pickup or Delivery?</label>
+                  <div class="d-flex gap-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="is_delivery" id="opt-pickup" value="pickup" checked>
+                      <label class="form-check-label" for="opt-pickup">
+                        <i class="bi bi-person-walking me-1"></i>Customer Pickup — Yorkton, SK
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="is_delivery" id="opt-delivery" value="delivery">
+                      <label class="form-check-label" for="opt-delivery">
+                        <i class="bi bi-truck me-1"></i>Delivery (${{ rate_per_km }}/km)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Delivery address (hidden until delivery selected) -->
+                <div class="col-12 d-none" id="delivery-section">
+                  <label class="form-label">Delivery Address</label>
+                  <div class="input-group">
+                    <input type="text" name="delivery_address" id="delivery-address" class="form-control"
+                      placeholder="Enter your full delivery address">
+                    <button type="button" class="btn btn-outline-secondary" id="calc-distance-btn">
+                      Calculate
+                    </button>
+                  </div>
+                  <div id="distance-result" class="mt-2 small"></div>
+                </div>
+
                 <div class="col-12">
                   <label class="form-label">Special Requests <span class="text-muted">(optional)</span></label>
                   <textarea name="notes" class="form-control" rows="2">{{ form.notes.value|default:'' }}</textarea>
@@ -69,14 +100,11 @@
               </div>
 
               {% if form.errors %}
-              <div class="alert alert-danger mt-3">
-                Please correct the errors below.
-                {{ form.errors }}
-              </div>
+              <div class="alert alert-danger mt-3">Please correct the errors and try again.</div>
               {% endif %}
 
               <button type="submit" class="btn btn-primary w-100 mt-4">
-                <i class="bi bi-arrow-right me-1"></i>Continue to Payment
+                <i class="bi bi-check-circle me-1"></i>Submit Booking Request
               </button>
             </form>
           </div>
@@ -85,7 +113,7 @@
 
       <!-- Booking summary -->
       <div class="col-lg-5">
-        <div class="card shadow-sm bg-light border-0">
+        <div class="card shadow-sm bg-light border-0 sticky-top" style="top: 1rem;">
           <div class="card-body">
             <h6 class="fw-bold mb-3">Booking Summary</h6>
             {% if rv.image %}
@@ -95,20 +123,29 @@
             <p class="text-muted small mb-3"><i class="bi bi-people me-1"></i>Sleeps {{ rv.capacity }}</p>
             <div class="small">
               <div class="d-flex justify-content-between mb-1">
-                <span>{{ start_date }} → {{ end_date }}</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
                 <span>{{ num_days }} day{{ num_days|pluralize }} × ${{ rv.price_per_day }}</span>
                 <span>${{ rental_total }}</span>
               </div>
+              <div id="summary-delivery-row" class="d-flex justify-content-between mb-1 d-none">
+                <span id="summary-delivery-label">Delivery</span>
+                <span id="summary-delivery-amount">—</span>
+              </div>
               <div class="d-flex justify-content-between mb-1">
-                <span>Damage deposit</span>
+                <span>GST ({{ gst_rate }}%)</span>
+                <span id="summary-gst">${{ gst }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span>PST ({{ pst_rate }}%)</span>
+                <span id="summary-pst">${{ pst }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1 text-muted">
+                <span>Damage deposit (refundable)</span>
                 <span>${{ rv.damage_deposit }}</span>
               </div>
               <hr>
               <div class="d-flex justify-content-between fw-bold">
                 <span>Total due</span>
-                <span>${{ grand_total }}</span>
+                <span id="summary-total">${{ grand_total }}</span>
               </div>
             </div>
           </div>
@@ -118,4 +155,74 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rentalTotal = {{ rental_total }};
+const damageDeposit = {{ rv.damage_deposit }};
+const gstRate = {{ gst_rate }} / 100;
+const pstRate = {{ pst_rate }} / 100;
+const ratePerKm = {{ rate_per_km }};
+
+let deliveryCharge = 0;
+
+function fmt(n) { return "$" + parseFloat(n).toFixed(2); }
+
+function updateSummary() {
+  const taxable = rentalTotal + deliveryCharge;
+  const gst = taxable * gstRate;
+  const pst = taxable * pstRate;
+  const total = taxable + gst + pst + damageDeposit;
+  document.getElementById("summary-gst").textContent = fmt(gst);
+  document.getElementById("summary-pst").textContent = fmt(pst);
+  document.getElementById("summary-total").textContent = fmt(total);
+}
+
+// Toggle delivery section
+document.querySelectorAll("input[name='is_delivery']").forEach(radio => {
+  radio.addEventListener("change", function() {
+    const section = document.getElementById("delivery-section");
+    if (this.value === "delivery") {
+      section.classList.remove("d-none");
+    } else {
+      section.classList.add("d-none");
+      deliveryCharge = 0;
+      document.getElementById("summary-delivery-row").classList.add("d-none");
+      updateSummary();
+    }
+  });
+});
+
+// Calculate delivery distance
+document.getElementById("calc-distance-btn").addEventListener("click", function() {
+  const address = document.getElementById("delivery-address").value.trim();
+  if (!address) return;
+
+  const resultEl = document.getElementById("distance-result");
+  resultEl.innerHTML = '<span class="text-muted">Calculating...</span>';
+  this.disabled = true;
+  const btn = this;
+
+  fetch(`/api/delivery-distance/?address=${encodeURIComponent(address)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        resultEl.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${data.error}</span>`;
+        deliveryCharge = 0;
+      } else {
+        deliveryCharge = data.charge;
+        resultEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>${data.distance_km} km from Yorkton — delivery charge: ${fmt(data.charge)}</span>`;
+        document.getElementById("summary-delivery-row").classList.remove("d-none");
+        document.getElementById("summary-delivery-label").textContent = `Delivery (${data.distance_km} km)`;
+        document.getElementById("summary-delivery-amount").textContent = fmt(data.charge);
+        updateSummary();
+      }
+    })
+    .catch(() => {
+      resultEl.innerHTML = '<span class="text-danger">Could not connect. Please try again.</span>';
+    })
+    .finally(() => { btn.disabled = false; });
+});
+</script>
 {% endblock %}
