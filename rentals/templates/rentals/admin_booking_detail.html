@@ -1,0 +1,147 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}Booking #{{ booking.pk }} — RV Rental{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Booking #{{ booking.pk }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_booking_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+    {% if booking.status != "cancelled" %}
+    <a href="{% url 'admin_booking_cancel' booking.pk %}" class="btn btn-outline-danger">
+      <i class="bi bi-x-circle me-1"></i> Cancel Booking
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Booking details -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><strong>Booking Details</strong></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">RV</dt>
+          <dd class="col-sm-8">{{ booking.rv.name }}</dd>
+
+          <dt class="col-sm-4">Status</dt>
+          <dd class="col-sm-8">
+            {% if booking.status == "confirmed" %}
+              <span class="badge bg-success">Confirmed</span>
+            {% elif booking.status == "pending" %}
+              <span class="badge bg-warning text-dark">Pending</span>
+            {% elif booking.status == "cancelled" %}
+              <span class="badge bg-danger">Cancelled</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ booking.get_status_display }}</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-sm-4">Source</dt>
+          <dd class="col-sm-8">{{ booking.get_source_display }}</dd>
+
+          <dt class="col-sm-4">Start Date</dt>
+          <dd class="col-sm-8">{{ booking.start_date }}</dd>
+
+          <dt class="col-sm-4">End Date</dt>
+          <dd class="col-sm-8">{{ booking.end_date }}</dd>
+
+          <dt class="col-sm-4">Duration</dt>
+          <dd class="col-sm-8">{{ booking.num_days }} day{{ booking.num_days|pluralize }}</dd>
+
+          <dt class="col-sm-4">Rental Total</dt>
+          <dd class="col-sm-8">${{ booking.rental_total }}</dd>
+
+          <dt class="col-sm-4">Damage Deposit</dt>
+          <dd class="col-sm-8">${{ booking.damage_deposit }}</dd>
+
+          <dt class="col-sm-4">Grand Total</dt>
+          <dd class="col-sm-8"><strong>${{ booking.total_charged }}</strong></dd>
+
+          {% if booking.special_requests %}
+          <dt class="col-sm-4">Notes</dt>
+          <dd class="col-sm-8">{{ booking.special_requests }}</dd>
+          {% endif %}
+
+          <dt class="col-sm-4">Created</dt>
+          <dd class="col-sm-8">{{ booking.created_at|date:"N j, Y g:i a" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer details -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header"><strong>Customer</strong></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-5">Name</dt>
+          <dd class="col-sm-7">{{ booking.customer.full_name }}</dd>
+
+          <dt class="col-sm-5">Email</dt>
+          <dd class="col-sm-7">{{ booking.customer.email }}</dd>
+
+          <dt class="col-sm-5">Phone</dt>
+          <dd class="col-sm-7">{{ booking.customer.phone }}</dd>
+
+          <dt class="col-sm-5">Driver's License</dt>
+          <dd class="col-sm-7">{{ booking.customer.drivers_license_number }}</dd>
+
+          <dt class="col-sm-5">License Expiry</dt>
+          <dd class="col-sm-7">{{ booking.customer.drivers_license_expiry }}</dd>
+
+          <dt class="col-sm-5">Emergency Contact</dt>
+          <dd class="col-sm-7">{{ booking.customer.emergency_contact_name }}</dd>
+
+          <dt class="col-sm-5">Emergency Phone</dt>
+          <dd class="col-sm-7">{{ booking.customer.emergency_contact_phone }}</dd>
+
+          {% if booking.customer.notes %}
+          <dt class="col-sm-5">Notes</dt>
+          <dd class="col-sm-7">{{ booking.customer.notes }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><strong>Payments</strong></div>
+      <div class="card-body p-0">
+        {% if booking.payments.all %}
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Date</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in booking.payments.all %}
+            <tr>
+              <td>{{ payment.get_payment_type_display }}</td>
+              <td>${{ payment.amount }}</td>
+              <td>{{ payment.get_method_display }}</td>
+              <td>{{ payment.paid_at|date:"N j, Y" }}</td>
+              <td>{{ payment.notes }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">No payments recorded yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

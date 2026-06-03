@@ -1,0 +1,190 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}New Booking — RV Rental{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">New Booking</h2>
+  <a href="{% url 'admin_booking_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to Bookings
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">RV</label>
+            <select name="rv" id="id_rv" class="form-select" required>
+              <option value="">-- Select an RV --</option>
+              {% for rv in form.rv.field.queryset %}
+              <option value="{{ rv.pk }}"
+                data-price="{{ rv.price_per_day }}"
+                data-deposit="{{ rv.damage_deposit }}"
+                {% if form.rv.value == rv.pk|stringformat:"s" %}selected{% endif %}>
+                {{ rv.name }} — ${{ rv.price_per_day }}/day
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Customer</label>
+            <select name="customer" id="id_customer" class="form-select" required>
+              <option value="">-- Select a customer --</option>
+              {% for customer in form.customer.field.queryset %}
+              <option value="{{ customer.pk }}" {% if form.customer.value == customer.pk|stringformat:"s" %}selected{% endif %}>
+                {{ customer.full_name }} ({{ customer.email }})
+              </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Customer not listed? <a href="/admin/rentals/customer/add/?_popup=1" target="_blank">Add new customer</a>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col">
+              <label class="form-label fw-semibold">Start Date</label>
+              <input type="date" name="start_date" id="id_start_date" class="form-control"
+                value="{{ form.start_date.value|default:'' }}" required>
+            </div>
+            <div class="col">
+              <label class="form-label fw-semibold">End Date</label>
+              <input type="date" name="end_date" id="id_end_date" class="form-control"
+                value="{{ form.end_date.value|default:'' }}" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Status</label>
+            {{ form.status }}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Special Requests</label>
+            <textarea name="special_requests" class="form-control" rows="3">{{ form.special_requests.value|default:'' }}</textarea>
+          </div>
+
+          <!-- Cost summary -->
+          <div class="alert alert-info d-none" id="cost-summary">
+            <div class="d-flex justify-content-between"><span>Rental cost:</span><strong id="summary-rental">—</strong></div>
+            <div class="d-flex justify-content-between"><span>Damage deposit:</span><strong id="summary-deposit">—</strong></div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between"><span>Total:</span><strong id="summary-total">—</strong></div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-check-circle me-1"></i> Create Booking
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Availability legend -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><strong>Availability</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Select an RV to see booked dates highlighted in red.</p>
+        <div id="availability-calendar"></div>
+        <div class="mt-2 d-flex gap-3 small">
+          <span><span class="badge bg-danger">●</span> Booked</span>
+          <span><span class="badge bg-success">●</span> Available</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rvAvailability = {{ rv_availability_json|safe }};
+
+let calendarInstance = null;
+let bookedRanges = [];
+
+function getBookedDates(ranges) {
+  const dates = [];
+  ranges.forEach(r => {
+    let current = new Date(r.start + "T00:00:00");
+    const end = new Date(r.end + "T00:00:00");
+    while (current <= end) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 1);
+    }
+  });
+  return dates;
+}
+
+function isDateBooked(dateStr) {
+  return bookedRanges.some(r => dateStr >= r.start && dateStr <= r.end);
+}
+
+function initCalendar(disabledDates) {
+  if (calendarInstance) calendarInstance.destroy();
+  calendarInstance = flatpickr("#availability-calendar", {
+    inline: true,
+    mode: "range",
+    minDate: "today",
+    onDayCreate: function(dObj, dStr, fp, dayElem) {
+      const d = dayElem.dateObj.toISOString().split("T")[0];
+      if (disabledDates.includes(d)) {
+        dayElem.classList.add("booked");
+        dayElem.title = "Already booked";
+      }
+    },
+    onChange: function(selectedDates) {
+      if (selectedDates.length === 2) {
+        document.getElementById("id_start_date").value = selectedDates[0].toISOString().split("T")[0];
+        document.getElementById("id_end_date").value = selectedDates[1].toISOString().split("T")[0];
+        updateCostSummary();
+      }
+    }
+  });
+}
+
+function updateCostSummary() {
+  const rvSelect = document.getElementById("id_rv");
+  const startVal = document.getElementById("id_start_date").value;
+  const endVal = document.getElementById("id_end_date").value;
+  const selected = rvSelect.options[rvSelect.selectedIndex];
+
+  if (!startVal || !endVal || !selected.dataset.price) return;
+
+  const days = Math.round((new Date(endVal) - new Date(startVal)) / 86400000);
+  if (days <= 0) return;
+
+  const rental = days * parseFloat(selected.dataset.price);
+  const deposit = parseFloat(selected.dataset.deposit);
+
+  document.getElementById("summary-rental").textContent = "$" + rental.toFixed(2);
+  document.getElementById("summary-deposit").textContent = "$" + deposit.toFixed(2);
+  document.getElementById("summary-total").textContent = "$" + (rental + deposit).toFixed(2);
+  document.getElementById("cost-summary").classList.remove("d-none");
+}
+
+document.getElementById("id_rv").addEventListener("change", function() {
+  const rvId = this.value;
+  bookedRanges = rvId ? (rvAvailability[rvId] || []) : [];
+  initCalendar(getBookedDates(bookedRanges));
+  updateCostSummary();
+});
+
+document.getElementById("id_start_date").addEventListener("change", updateCostSummary);
+document.getElementById("id_end_date").addEventListener("change", updateCostSummary);
+
+// Init calendar on load
+initCalendar([]);
+
+// Trigger RV change if pre-selected
+const rvSelect = document.getElementById("id_rv");
+if (rvSelect.value) rvSelect.dispatchEvent(new Event("change"));
+</script>
+{% endblock %}

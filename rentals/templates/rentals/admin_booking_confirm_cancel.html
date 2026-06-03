@@ -1,0 +1,29 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}Cancel Booking #{{ booking.pk }} — RV Rental{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-5">
+    <div class="card border-danger">
+      <div class="card-header bg-danger text-white">
+        <strong><i class="bi bi-exclamation-triangle me-2"></i>Cancel Booking</strong>
+      </div>
+      <div class="card-body">
+        <p>Are you sure you want to cancel this booking?</p>
+        <ul>
+          <li><strong>Customer:</strong> {{ booking.customer.full_name }}</li>
+          <li><strong>RV:</strong> {{ booking.rv.name }}</li>
+          <li><strong>Dates:</strong> {{ booking.start_date }} → {{ booking.end_date }}</li>
+        </ul>
+        <p class="text-muted small">This will free up the dates for new bookings.</p>
+        <form method="post" class="d-flex gap-2 mt-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Yes, Cancel Booking</button>
+          <a href="{% url 'admin_booking_detail' booking.pk %}" class="btn btn-outline-secondary">Go Back</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

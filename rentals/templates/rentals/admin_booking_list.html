@@ -1,0 +1,83 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}Bookings — RV Rental{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Bookings</h2>
+  <a href="{% url 'admin_booking_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i> New Booking
+  </a>
+</div>
+
+<!-- Filters -->
+<form method="get" class="row g-2 mb-4">
+  <div class="col-auto">
+    <select name="rv" class="form-select form-select-sm">
+      <option value="">All RVs</option>
+      {% for rv in rvs %}
+      <option value="{{ rv.pk }}" {% if selected_rv == rv.pk|stringformat:"s" %}selected{% endif %}>{{ rv.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="status" class="form-select form-select-sm">
+      <option value="">All Statuses</option>
+      {% for val, label in status_choices %}
+      <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+    <a href="{% url 'admin_booking_list' %}" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if bookings %}
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Customer</th>
+          <th>RV</th>
+          <th>Dates</th>
+          <th>Days</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Source</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in bookings %}
+        <tr>
+          <td>{{ booking.customer.full_name }}</td>
+          <td>{{ booking.rv.name }}</td>
+          <td>{{ booking.start_date }} → {{ booking.end_date }}</td>
+          <td>{{ booking.num_days }}</td>
+          <td>${{ booking.total_charged }}</td>
+          <td>
+            {% if booking.status == "confirmed" %}
+              <span class="badge bg-success">Confirmed</span>
+            {% elif booking.status == "pending" %}
+              <span class="badge bg-warning text-dark">Pending</span>
+            {% elif booking.status == "cancelled" %}
+              <span class="badge bg-danger">Cancelled</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ booking.get_status_display }}</span>
+            {% endif %}
+          </td>
+          <td><span class="badge bg-light text-dark border">{{ booking.get_source_display }}</span></td>
+          <td><a href="{% url 'admin_booking_detail' booking.pk %}" class="btn btn-sm btn-outline-primary">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-4 text-center text-muted">No bookings found.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
