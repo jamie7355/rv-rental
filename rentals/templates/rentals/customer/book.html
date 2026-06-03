@@ -24,8 +24,8 @@
             <h5 class="card-title mb-3">Your Information</h5>
             <form method="post" id="booking-form">
               {% csrf_token %}
-              <input type="hidden" name="start_date" value="{{ start_date }}">
-              <input type="hidden" name="end_date" value="{{ end_date }}">
+              <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+              <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
 
               <div class="row g-3">
                 <div class="col-6">
