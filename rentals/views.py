@@ -176,12 +176,17 @@ def availability_api(request, rv_id):
 
 @staff_member_required
 def admin_dashboard(request):
+    pending = Booking.objects.filter(
+        status=Booking.Status.PENDING
+    ).select_related("rv", "customer").order_by("created_at")
+
     upcoming = Booking.objects.filter(
         status=Booking.Status.CONFIRMED
     ).select_related("rv", "customer").order_by("start_date")[:10]
 
     rvs = RV.objects.filter(is_active=True)
     return render(request, "rentals/admin_dashboard.html", {
+        "pending": pending,
         "upcoming": upcoming,
         "rvs": rvs,
     })
