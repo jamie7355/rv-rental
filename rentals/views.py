@@ -89,7 +89,7 @@ def rv_book(request, pk):
         is_delivery = request.POST.get("is_delivery") == "delivery"
         delivery_address = request.POST.get("delivery_address", "").strip()
         delivery_distance_km = None
-        delivery_charge = 0
+        delivery_charge = Decimal("0")
 
         if is_delivery and delivery_address:
             delivery_distance_km = get_delivery_distance_km(delivery_address)
@@ -134,7 +134,7 @@ def rv_book(request, pk):
             return redirect("booking_confirmed", pk=booking.pk)
     else:
         form = CustomerForm()
-        gst, pst = calculate_taxes(rental_total, 0)
+        gst, pst = calculate_taxes(rental_total, Decimal("0"))
         grand_total = rental_total + gst + pst + rv.damage_deposit
 
     return render(request, "rentals/customer/book.html", {
@@ -288,7 +288,7 @@ def admin_quote_create(request):
         is_delivery = request.POST.get("is_delivery") == "delivery"
         delivery_address = request.POST.get("delivery_address", "").strip()
         delivery_distance_km = None
-        delivery_charge = 0
+        delivery_charge = Decimal("0")
 
         if is_delivery and delivery_address:
             delivery_distance_km = get_delivery_distance_km(delivery_address)
@@ -439,7 +439,7 @@ def admin_booking_edit(request, pk):
         if is_delivery and delivery_address:
             delivery_distance_km = get_delivery_distance_km(delivery_address)
             if delivery_distance_km:
-                delivery_charge = Decimal(str(calculate_delivery_charge(delivery_distance_km)))
+                delivery_charge = calculate_delivery_charge(delivery_distance_km)
 
         start_date = date.fromisoformat(request.POST.get("start_date"))
         end_date = date.fromisoformat(request.POST.get("end_date"))
