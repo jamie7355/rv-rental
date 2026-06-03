@@ -11,12 +11,12 @@ A simple system for managing RV rentals.
 ## Getting Started
 
 1. Clone this repository
-2. Install dependancies
+2. Install dependencies
 3. Run the app
 
 ## Usage
 
-Use the booking system to reserve an RV for your desired dates. Customers can view availibility and pricing before confirming.
+Use the booking system to reserve an RV for your desired dates. Customers can view availability and pricing before confirming.
 
 ## License
 
