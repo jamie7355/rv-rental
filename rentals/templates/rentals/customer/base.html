@@ -46,9 +46,16 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navMenu">
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav ms-auto align-items-center">
           <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Our RVs</a></li>
           <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+          <li class="nav-item ms-2">
+            {% if user.is_staff %}
+              <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Admin</a>
+            {% else %}
+              <a href="/admin/login/?next=/dashboard/" class="btn btn-sm btn-outline-secondary">Admin</a>
+            {% endif %}
+          </li>
         </ul>
       </div>
     </div>
