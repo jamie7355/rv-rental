@@ -1,0 +1,244 @@
+{% extends "rentals/base.html" %}
+
+{% block title %}Edit Booking #{{ booking.pk }} — Prairie Skies RV Rentals{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Edit Booking #{{ booking.pk }}</h2>
+  <a href="{% url 'admin_booking_detail' booking.pk %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Cancel
+  </a>
+</div>
+
+<form method="post" id="edit-form">
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <!-- Booking details -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><strong>Booking Details</strong></div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label">RV</label>
+            <select name="rv" id="id_rv" class="form-select" required>
+              {% for rv in rvs %}
+              <option value="{{ rv.pk }}"
+                data-price="{{ rv.price_per_day }}"
+                data-deposit="{{ rv.damage_deposit }}"
+                {% if rv.pk == booking.rv.pk %}selected{% endif %}>
+                {{ rv.name }} — ${{ rv.price_per_day }}/day
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if booking.status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col">
+              <label class="form-label">Start Date</label>
+              <input type="date" name="start_date" id="id_start_date" class="form-control"
+                value="{{ booking.start_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col">
+              <label class="form-label">End Date</label>
+              <input type="date" name="end_date" id="id_end_date" class="form-control"
+                value="{{ booking.end_date|date:'Y-m-d' }}" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Pickup or Delivery?</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="is_delivery" id="opt-pickup" value="pickup"
+                  {% if not booking.is_delivery %}checked{% endif %}>
+                <label class="form-check-label" for="opt-pickup">Customer Pickup — Yorkton, SK</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="is_delivery" id="opt-delivery" value="delivery"
+                  {% if booking.is_delivery %}checked{% endif %}>
+                <label class="form-check-label" for="opt-delivery">Delivery (${{ rate_per_km }}/km)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3 {% if not booking.is_delivery %}d-none{% endif %}" id="delivery-section">
+            <label class="form-label">Delivery Address</label>
+            <div class="input-group">
+              <input type="text" name="delivery_address" id="delivery-address" class="form-control"
+                value="{{ booking.delivery_address }}">
+              <button type="button" class="btn btn-outline-secondary" id="calc-distance-btn">Recalculate</button>
+            </div>
+            <div id="distance-result" class="mt-2 small">
+              {% if booking.delivery_distance_km %}
+                <span class="text-success">
+                  <i class="bi bi-check-circle me-1"></i>
+                  {{ booking.delivery_distance_km }} km from Yorkton — current charge: ${{ booking.delivery_charge }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Special Requests / Notes</label>
+            <textarea name="special_requests" class="form-control" rows="2">{{ booking.special_requests }}</textarea>
+          </div>
+
+          <!-- Cost summary -->
+          <div class="alert alert-info" id="cost-summary">
+            <div class="d-flex justify-content-between mb-1"><span>Rental:</span><strong id="summary-rental">${{ booking.rental_total }}</strong></div>
+            <div class="d-flex justify-content-between mb-1 {% if not booking.is_delivery %}d-none{% endif %}" id="summary-delivery-row">
+              <span id="summary-delivery-label">Delivery {% if booking.delivery_distance_km %}({{ booking.delivery_distance_km }} km){% endif %}:</span>
+              <strong id="summary-delivery-amt">${{ booking.delivery_charge }}</strong>
+            </div>
+            <div class="d-flex justify-content-between mb-1"><span>GST (5%):</span><strong id="summary-gst">${{ booking.gst_amount }}</strong></div>
+            <div class="d-flex justify-content-between mb-1"><span>PST (6%):</span><strong id="summary-pst">${{ booking.pst_amount }}</strong></div>
+            <div class="d-flex justify-content-between mb-1 text-muted"><span>Damage deposit:</span><strong>${{ booking.damage_deposit }}</strong></div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between"><span>Grand Total:</span><strong id="summary-total">${{ booking.total_charged }}</strong></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer details -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><strong>Customer Details</strong></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">First Name</label>
+              <input type="text" name="first_name" class="form-control" value="{{ booking.customer.first_name }}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" name="last_name" class="form-control" value="{{ booking.customer.last_name }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ booking.customer.email }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Phone</label>
+              <input type="tel" name="phone" class="form-control" value="{{ booking.customer.phone }}" required>
+            </div>
+            <div class="col-8">
+              <label class="form-label">Driver's License</label>
+              <input type="text" name="drivers_license_number" class="form-control" value="{{ booking.customer.drivers_license_number }}">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Expiry</label>
+              <input type="date" name="drivers_license_expiry" class="form-control" value="{{ booking.customer.drivers_license_expiry|date:'Y-m-d' }}">
+            </div>
+            <div class="col-8">
+              <label class="form-label">Emergency Contact</label>
+              <input type="text" name="emergency_contact_name" class="form-control" value="{{ booking.customer.emergency_contact_name }}">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Their Phone</label>
+              <input type="tel" name="emergency_contact_phone" class="form-control" value="{{ booking.customer.emergency_contact_phone }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Customer Notes</label>
+              <textarea name="customer_notes" class="form-control" rows="2">{{ booking.customer.notes }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary px-5">
+        <i class="bi bi-check-circle me-1"></i>Save Changes
+      </button>
+      <a href="{% url 'admin_booking_detail' booking.pk %}" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </div>
+
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rvAvailability = {{ rv_availability_json|safe }};
+const GST = 0.05, PST = 0.06;
+let deliveryCharge = {{ booking.delivery_charge }};
+
+function fmt(n) { return "$" + parseFloat(n).toFixed(2); }
+
+function updateSummary() {
+  const rvSel = document.getElementById("id_rv");
+  const start = document.getElementById("id_start_date").value;
+  const end = document.getElementById("id_end_date").value;
+  const opt = rvSel.options[rvSel.selectedIndex];
+  if (!start || !end || !opt.dataset.price) return;
+  const days = Math.round((new Date(end) - new Date(start)) / 86400000);
+  if (days <= 0) return;
+  const rental = days * parseFloat(opt.dataset.price);
+  const deposit = parseFloat(opt.dataset.deposit);
+  const taxable = rental + deliveryCharge;
+  const gst = taxable * GST, pst = taxable * PST;
+  const total = taxable + gst + pst + deposit;
+  document.getElementById("summary-rental").textContent = fmt(rental);
+  document.getElementById("summary-gst").textContent = fmt(gst);
+  document.getElementById("summary-pst").textContent = fmt(pst);
+  document.getElementById("summary-total").textContent = fmt(total);
+}
+
+document.getElementById("id_rv").addEventListener("change", updateSummary);
+document.getElementById("id_start_date").addEventListener("change", updateSummary);
+document.getElementById("id_end_date").addEventListener("change", updateSummary);
+
+document.querySelectorAll("input[name='is_delivery']").forEach(r => {
+  r.addEventListener("change", function() {
+    const sec = document.getElementById("delivery-section");
+    if (this.value === "delivery") {
+      sec.classList.remove("d-none");
+    } else {
+      sec.classList.add("d-none");
+      deliveryCharge = 0;
+      document.getElementById("summary-delivery-row").classList.add("d-none");
+      updateSummary();
+    }
+  });
+});
+
+document.getElementById("calc-distance-btn").addEventListener("click", function() {
+  const address = document.getElementById("delivery-address").value.trim();
+  if (!address) return;
+  const resultEl = document.getElementById("distance-result");
+  resultEl.innerHTML = '<span class="text-muted">Calculating...</span>';
+  this.disabled = true;
+  const btn = this;
+  fetch(`/api/delivery-distance/?address=${encodeURIComponent(address)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        resultEl.innerHTML = `<span class="text-danger">${data.error}</span>`;
+        deliveryCharge = 0;
+      } else {
+        deliveryCharge = data.charge;
+        resultEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>${data.distance_km} km from Yorkton — charge: ${fmt(data.charge)}</span>`;
+        document.getElementById("summary-delivery-row").classList.remove("d-none");
+        document.getElementById("summary-delivery-label").textContent = `Delivery (${data.distance_km} km):`;
+        document.getElementById("summary-delivery-amt").textContent = fmt(data.charge);
+        updateSummary();
+      }
+    })
+    .catch(() => resultEl.innerHTML = '<span class="text-danger">Could not connect. Please try again.</span>')
+    .finally(() => btn.disabled = false);
+});
+</script>
+{% endblock %}

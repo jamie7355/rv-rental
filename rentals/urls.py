@@ -13,6 +13,7 @@ urlpatterns = [
     path("bookings/", views.admin_booking_list, name="admin_booking_list"),
     path("bookings/new/", views.admin_booking_create, name="admin_booking_create"),
     path("bookings/<int:pk>/", views.admin_booking_detail, name="admin_booking_detail"),
+    path("bookings/<int:pk>/edit/", views.admin_booking_edit, name="admin_booking_edit"),
     path("bookings/<int:pk>/cancel/", views.admin_booking_cancel, name="admin_booking_cancel"),
     path("quotes/", views.admin_quote_list, name="admin_quote_list"),
     path("quotes/new/", views.admin_quote_create, name="admin_quote_create"),

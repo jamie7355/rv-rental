@@ -416,6 +416,79 @@ def admin_invoice_pdf(request, pk):
 
 
 @staff_member_required
+def admin_booking_edit(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    rvs = RV.objects.filter(is_active=True)
+
+    rv_availability = {}
+    for rv in rvs:
+        booked = Booking.objects.filter(
+            rv=rv,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).exclude(pk=pk).values("start_date", "end_date")
+        rv_availability[rv.pk] = [
+            {"start": str(b["start_date"]), "end": str(b["end_date"])} for b in booked
+        ]
+
+    if request.method == "POST":
+        is_delivery = request.POST.get("is_delivery") == "delivery"
+        delivery_address = request.POST.get("delivery_address", "").strip()
+        delivery_distance_km = None
+        delivery_charge = Decimal("0")
+
+        if is_delivery and delivery_address:
+            delivery_distance_km = get_delivery_distance_km(delivery_address)
+            if delivery_distance_km:
+                delivery_charge = Decimal(str(calculate_delivery_charge(delivery_distance_km)))
+
+        start_date = date.fromisoformat(request.POST.get("start_date"))
+        end_date = date.fromisoformat(request.POST.get("end_date"))
+        rv = get_object_or_404(RV, pk=request.POST.get("rv"))
+        num_days = (end_date - start_date).days
+        rental_total = rv.price_per_day * num_days
+        gst, pst = calculate_taxes(rental_total, delivery_charge)
+
+        booking.rv = rv
+        booking.start_date = start_date
+        booking.end_date = end_date
+        booking.status = request.POST.get("status")
+        booking.is_delivery = is_delivery
+        booking.delivery_address = delivery_address if is_delivery else ""
+        booking.delivery_distance_km = delivery_distance_km
+        booking.delivery_charge = delivery_charge
+        booking.rental_total = rental_total
+        booking.damage_deposit = rv.damage_deposit
+        booking.gst_amount = gst
+        booking.pst_amount = pst
+        booking.special_requests = request.POST.get("special_requests", "")
+
+        # Update customer info
+        customer = booking.customer
+        customer.first_name = request.POST.get("first_name", "").strip()
+        customer.last_name = request.POST.get("last_name", "").strip()
+        customer.email = request.POST.get("email", "").strip()
+        customer.phone = request.POST.get("phone", "").strip()
+        customer.drivers_license_number = request.POST.get("drivers_license_number", "").strip()
+        customer.drivers_license_expiry = request.POST.get("drivers_license_expiry")
+        customer.emergency_contact_name = request.POST.get("emergency_contact_name", "").strip()
+        customer.emergency_contact_phone = request.POST.get("emergency_contact_phone", "").strip()
+        customer.notes = request.POST.get("customer_notes", "").strip()
+        customer.save()
+        booking.save()
+
+        messages.success(request, "Booking updated successfully.")
+        return redirect("admin_booking_detail", pk=booking.pk)
+
+    return render(request, "rentals/admin_booking_edit.html", {
+        "booking": booking,
+        "rvs": rvs,
+        "rv_availability_json": json.dumps(rv_availability),
+        "status_choices": Booking.Status.choices,
+        "rate_per_km": django_settings.DELIVERY_RATE_PER_KM,
+    })
+
+
+@staff_member_required
 def admin_booking_cancel(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
     if request.method == "POST":
