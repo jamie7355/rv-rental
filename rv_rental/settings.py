@@ -30,13 +30,21 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure--xu5hmpnex*71oib6gj)y$3z2@
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "snide-astound-siamese.ngrok-free.dev"]
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "snide-astound-siamese.ngrok-free.dev",
+    "rv-rental-production.up.railway.app",
+    "prairiervrentals.ca",
+    "www.prairiervrentals.ca",
+]
 RAILWAY_HOST = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
 if RAILWAY_HOST:
     ALLOWED_HOSTS.append(RAILWAY_HOST)
 
 CSRF_TRUSTED_ORIGINS = [
     "https://snide-astound-siamese.ngrok-free.dev",
+    "https://rv-rental-production.up.railway.app",
     "https://prairiervrentals.ca",
     "https://www.prairiervrentals.ca",
 ]
