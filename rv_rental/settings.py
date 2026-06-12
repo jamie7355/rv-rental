@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import dj_database_url
 
 load_dotenv()
 
@@ -25,19 +26,22 @@ DELIVERY_ORIGIN = "Yorkton, Saskatchewan, Canada"
 GST_RATE = 0.05
 PST_RATE = 0.06
 
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure--xu5hmpnex*71oib6gj)y$3z2@&ovyw3uu&-p+^l5f@n5fu8c_")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--xu5hmpnex*71oib6gj)y$3z2@&ovyw3uu&-p+^l5f@n5fu8c_'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "snide-astound-siamese.ngrok-free.dev"]
+RAILWAY_HOST = os.getenv("RAILWAY_PUBLIC_DOMAIN", "")
+if RAILWAY_HOST:
+    ALLOWED_HOSTS.append(RAILWAY_HOST)
 
-CSRF_TRUSTED_ORIGINS = ["https://snide-astound-siamese.ngrok-free.dev"]
+CSRF_TRUSTED_ORIGINS = [
+    "https://snide-astound-siamese.ngrok-free.dev",
+    "https://prairiervrentals.ca",
+    "https://www.prairiervrentals.ca",
+]
+if RAILWAY_HOST:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RAILWAY_HOST}")
 
 
 # Application definition
@@ -59,6 +63,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -90,12 +95,16 @@ WSGI_APPLICATION = 'rv_rental.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 
 # Password validation
@@ -133,7 +142,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'rentals' / 'static']
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

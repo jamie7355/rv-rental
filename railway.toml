@@ -1,0 +1,2 @@
+[deploy]
+startCommand = "python manage.py migrate && gunicorn rv_rental.wsgi --log-file -"
